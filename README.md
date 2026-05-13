@@ -1,43 +1,77 @@
-# 🛡️ Clarix — Fullstack Edition
+<p align="center">
+  <img src="frontend/public/shield.svg" width="64" alt="Clarix logo" />
+</p>
 
-Pre-deployment code assessment platform with a **FastAPI backend** and **React + Tailwind frontend**.
+<h1 align="center">Clarix</h1>
 
-## Architecture
+<p align="center">
+  Pre-deployment security analysis for your codebase.<br/>
+  Static regex scanning + optional LLM-powered deep review — all in one tool.
+</p>
 
-```
-codegate-fullstack/
-├── backend/               # FastAPI + analysis engine
-│   ├── app/
-│   │   ├── main.py        # FastAPI app entry
-│   │   ├── core/          # Config + Pydantic models
-│   │   ├── api/           # REST endpoints
-│   │   └── services/      # Ingestion, LLM, Security, Analyzer
-│   ├── requirements.txt
-│   └── .env.example
-│
-└── frontend/              # React + Vite + Tailwind
-    ├── src/
-    │   ├── components/    # Dashboard, IssueList, RiskScore, etc.
-    │   ├── hooks/         # useAnalysis API hook
-    │   └── App.jsx
-    └── package.json
-```
+<p align="center">
+  <a href="#features">Features</a> ·
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="#docker">Docker</a> ·
+  <a href="#configuration">Configuration</a> ·
+  <a href="#rules">Rules</a> ·
+  <a href="#license">License</a>
+</p>
+
+---
+
+## Features
+
+- **Static analysis** — 77 built-in regex rules across Security, HIPAA, PCI-DSS, GDPR, and SOC 2 frameworks. No API key required.
+- **LLM deep review** — optional AI-powered code analysis via Anthropic Claude or OpenAI GPT-4o for richer findings.
+- **GitHub + local** — analyze any public or private GitHub repo, or point it at a local folder.
+- **Rules manager** — enable, disable, edit, or add custom rules. Bulk toggle all on/off to run only the checks you want.
+- **Live streaming** — results stream in real time over SSE as each file is scanned.
+- **Export** — download the full report as Markdown or JSON.
+- **Docker ready** — one `docker-compose up` for production.
+
+---
 
 ## Quick Start
 
-### 1. Backend
+### Prerequisites
+
+- Python 3.11+
+- Node.js 18+
+
+### 1. Clone
+
+```bash
+git clone https://github.com/aengelicc/clarix.git
+cd clarix
+```
+
+### 2. Backend
 
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env with your API keys
+```
+
+Edit `.env` with your API keys (only needed for LLM analysis — static-only mode requires no keys):
+
+```env
+LLM_PROVIDER=anthropic          # or openai
+ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-...
+GITHUB_PAT=ghp_...              # only needed for private repos
+```
+
+Start the backend:
+
+```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-### 2. Frontend
+### 3. Frontend
 
 ```bash
 cd frontend
@@ -45,47 +79,95 @@ npm install
 npm run dev
 ```
 
-The frontend will proxy API calls to `http://localhost:8000` automatically.
+Open **http://localhost:5173** — API calls are proxied to the backend automatically.
 
-Open `http://localhost:5173` in your browser.
+---
+
+## Docker
+
+The fastest way to run Clarix in production:
+
+```bash
+cp backend/.env.example backend/.env
+# Edit backend/.env with your keys
+docker-compose up --build
+```
+
+| Service  | URL                    |
+| -------- | ---------------------- |
+| Frontend | http://localhost:3000  |
+| Backend  | http://localhost:8000  |
+
+---
 
 ## Configuration
 
-Backend `.env`:
+All backend configuration lives in `backend/.env`:
 
-```env
-LLM_PROVIDER=openai
-OPENAI_API_KEY=sk-your-key
-OPENAI_MODEL=gpt-4o
-ANTHROPIC_API_KEY=sk-ant-your-key
-ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
-GITHUB_PAT=ghp-your-pat
+| Variable             | Default                    | Description                              |
+| -------------------- | -------------------------- | ---------------------------------------- |
+| `LLM_PROVIDER`       | `anthropic`                | `anthropic` or `openai`                  |
+| `ANTHROPIC_API_KEY`  | —                          | Required for LLM analysis with Claude    |
+| `ANTHROPIC_MODEL`    | `claude-sonnet-4-6`        | Claude model ID                          |
+| `OPENAI_API_KEY`     | —                          | Required for LLM analysis with GPT       |
+| `OPENAI_MODEL`       | `gpt-4o`                   | OpenAI model ID                          |
+| `GITHUB_PAT`         | —                          | Personal access token for private repos  |
+| `MAX_FILES`          | `100`                      | Maximum files to scan per analysis       |
+| `MAX_FILE_SIZE_KB`   | `500`                      | Skip files larger than this              |
+
+---
+
+## Usage
+
+### Analyzing a repository
+
+1. Paste a GitHub URL or click **Browse** to pick a local folder.
+2. *(Optional)* Open **Analysis Settings** to choose your LLM provider or toggle **Static analysis only** to skip LLM calls entirely.
+3. Click **Start Analysis**.
+
+Results stream in across five tabs: **Overview**, **Issues**, **Files**, **Compliance**, and **AI Insights**.
+
+### Static-only mode
+
+Enable **Static analysis only** in the settings panel to run purely regex-based scans with no API key required. Faster, and useful for CI/pre-commit hooks.
+
+---
+
+## Rules
+
+Clarix ships with 77 built-in rules. Open **Manage security rules** from the home screen to:
+
+- **Enable / disable** individual rules or bulk-toggle all on/off.
+- **Edit** any rule's pattern, severity, or description.
+- **Add** custom regex rules scoped to a specific scanner and language.
+- **Delete** rules you don't need.
+
+Rules are stored in `backend/app/data/rules.json` and persist across restarts.
+
+---
+
+## Project Structure
+
+```
+clarix/
+├── backend/
+│   ├── app/
+│   │   ├── api/           # REST + SSE endpoints
+│   │   ├── core/          # Pydantic models & config
+│   │   ├── data/          # rules.json (seeded on first run)
+│   │   └── services/      # Ingestion, LLM, scanners, rules store
+│   ├── requirements.txt
+│   └── .env.example
+│
+└── frontend/
+    ├── src/
+    │   ├── components/    # Dashboard, RulesManager, InputForm, …
+    │   └── hooks/         # useAnalysis, useRules
+    └── package.json
 ```
 
-## Features
-
-- 🔗 GitHub (public/private) + Local folder analysis
-- 🤖 OpenAI GPT-4o or Anthropic Claude 3.5 Sonnet
-- 🔒 Regex-based secret scanning + dangerous pattern detection
-- 📊 Animated risk score gauge, language pie chart, issue explorer
-- 📤 Export to Markdown and JSON
-- 🎨 Clean, modern Tailwind UI with dark accents
-
-## Deployment
-
-### Docker (coming next)
-Build a `docker-compose.yml` with:
-- Backend container (Python)
-- Frontend container (Nginx serving static build)
-- Optional: Redis for job queuing large repos
-
-### Production Build
-
-```bash
-cd frontend
-npm run build
-# Serve dist/ via Nginx or copy into backend static files
-```
+---
 
 ## License
-MIT
+
+[MIT](LICENSE)
