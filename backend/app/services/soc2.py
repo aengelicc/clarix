@@ -2,7 +2,7 @@
 import re
 from pathlib import Path
 from typing import List
-from app.core.models import Issue, ComplianceChecklistItem, Severity, Category
+from app.core.models import Issue, ComplianceChecklistItem, Severity, Category, SEVERITY_ORDER
 
 SOC2_PATTERNS = [
     (
@@ -122,31 +122,44 @@ SOC2_CHECKLIST_TEMPLATE = [
     },
 ]
 
-_SEV_ORDER = ["info", "low", "medium", "high", "critical"]
-
-
 def scan_soc2(file_path: Path, relative_path: str, language: str, content: str) -> List[Issue]:
     """Scan a file for SOC 2 Trust Service Criteria violations."""
     from app.services import rules_store
     issues = []
     lines = content.splitlines()
     for rule in rules_store.get_active_rules(scanner="soc2"):
-        for i, line in enumerate(lines, 1):
-            stripped = line.strip()
-            if stripped.startswith(("#", "//", "*", "<!--")):
-                continue
-            if re.search(rule.pattern, line):
+        if "\\n" in rule.pattern or "\n" in rule.pattern:
+            # Multi-line pattern: match against the full file content.
+            m = re.search(rule.pattern, content, re.MULTILINE | re.DOTALL)
+            if m:
+                line_num = content[: m.start()].count("\n") + 1
                 issues.append(Issue(
                     category=Category.SECURITY,
                     severity=rule.severity,
                     file=relative_path,
-                    line=i,
+                    line=line_num,
                     description=rule.description,
                     recommendation=rule.recommendation,
                     compliance_ref=rule.compliance_ref,
-                    code_snippet=stripped[:150],
                     source="soc2_scanner",
                 ))
+        else:
+            for i, line in enumerate(lines, 1):
+                stripped = line.strip()
+                if stripped.startswith(("#", "//", "*", "<!--")):
+                    continue
+                if re.search(rule.pattern, line):
+                    issues.append(Issue(
+                        category=Category.SECURITY,
+                        severity=rule.severity,
+                        file=relative_path,
+                        line=i,
+                        description=rule.description,
+                        recommendation=rule.recommendation,
+                        compliance_ref=rule.compliance_ref,
+                        code_snippet=stripped[:150],
+                        source="soc2_scanner",
+                    ))
     return issues
 
 
@@ -159,7 +172,7 @@ def build_soc2_checklist(all_issues: List[Issue]) -> List[ComplianceChecklistIte
             if i.compliance_ref and item["ref_substring"] in i.compliance_ref
         ]
         worst_idx = max(
-            (_SEV_ORDER.index(i.severity.value) for i in relevant),
+            (SEVERITY_ORDER.index(i.severity.value) for i in relevant),
             default=-1,
         )
         checklist.append(ComplianceChecklistItem(
@@ -169,6 +182,6 @@ def build_soc2_checklist(all_issues: List[Issue]) -> List[ComplianceChecklistIte
             description=item["description"],
             findings_count=len(relevant),
             status="fail" if relevant else "pass",
-            worst_severity=_SEV_ORDER[worst_idx] if worst_idx >= 0 else None,
+            worst_severity=SEVERITY_ORDER[worst_idx] if worst_idx >= 0 else None,
         ))
     return checklist

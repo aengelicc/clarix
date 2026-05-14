@@ -79,8 +79,7 @@ def scan_file(file_path: Path, relative_path: str, language: str, content: str) 
             if re.search(rule.pattern, line):
                 stripped = line.strip().lower()
                 if stripped.startswith(("#", "//", "*")):
-                    if any(w in stripped for w in ("example", "placeholder", "fake")):
-                        continue
+                    continue  # skip comment lines — they're documentation, not live credentials
                 issues.append(Issue(
                     category=Category.SECURITY,
                     severity=rule.severity,

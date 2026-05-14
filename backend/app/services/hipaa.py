@@ -2,7 +2,7 @@
 import re
 from pathlib import Path
 from typing import List, Dict, Any
-from app.core.models import Issue, HipaaChecklistItem, Severity, Category
+from app.core.models import Issue, HipaaChecklistItem, Severity, Category, SEVERITY_ORDER
 
 # (name, pattern, severity, hipaa_ref, recommendation)
 # All patterns use single-quote raw strings to safely contain double-quote characters.
@@ -173,7 +173,6 @@ HIPAA_CHECKLIST_TEMPLATE = [
     },
 ]
 
-_SEV_ORDER = ["info", "low", "medium", "high", "critical"]
 
 
 def scan_hipaa(file_path: Path, relative_path: str, language: str, content: str) -> List[Issue]:
@@ -211,7 +210,7 @@ def build_hipaa_checklist(all_issues: List[Issue]) -> List[HipaaChecklistItem]:
             if i.hipaa_reference and item["ref_substring"] in i.hipaa_reference
         ]
         worst_idx = max(
-            (_SEV_ORDER.index(i.severity.value) for i in relevant),
+            (SEVERITY_ORDER.index(i.severity.value) for i in relevant),
             default=-1,
         )
         checklist.append(HipaaChecklistItem(
@@ -220,6 +219,6 @@ def build_hipaa_checklist(all_issues: List[Issue]) -> List[HipaaChecklistItem]:
             description=item["description"],
             findings_count=len(relevant),
             status="fail" if relevant else "pass",
-            worst_severity=_SEV_ORDER[worst_idx] if worst_idx >= 0 else None,
+            worst_severity=SEVERITY_ORDER[worst_idx] if worst_idx >= 0 else None,
         ))
     return checklist

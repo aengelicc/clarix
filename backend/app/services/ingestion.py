@@ -55,6 +55,12 @@ def validate_local_path(path: str) -> str:
         raise ValueError(f"Path does not exist: {resolved}")
     if not resolved.is_dir():
         raise ValueError(f"Path is not a directory: {resolved}")
+    # Enforce allowlist when ALLOWED_LOCAL_PATHS is configured.
+    from app.core.config import settings
+    if settings.allowed_local_paths:
+        allowed = [Path(p.strip()).resolve() for p in settings.allowed_local_paths.split(",") if p.strip()]
+        if not any(resolved == base or resolved.is_relative_to(base) for base in allowed):
+            raise ValueError(f"Path '{resolved}' is outside the configured allowed directories.")
     return str(resolved)
 
 

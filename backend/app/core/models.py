@@ -12,6 +12,10 @@ class Severity(str, Enum):
     INFO = "info"
 
 
+# Canonical severity ordering from least to most severe — single source of truth.
+SEVERITY_ORDER = ["info", "low", "medium", "high", "critical"]
+
+
 class Category(str, Enum):
     BUG = "bug"
     SECURITY = "security"

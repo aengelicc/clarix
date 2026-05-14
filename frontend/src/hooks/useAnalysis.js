@@ -9,17 +9,27 @@ export function useAnalysis() {
   const [progress, setProgress] = useState('');
   const abortControllerRef = useRef(null);
   const userCancelledRef = useRef(false);
+  const timeoutRef = useRef(null);
+  const jobIdRef = useRef(null);
 
   const cancel = useCallback(async () => {
     userCancelledRef.current = true;
-    try { await fetch(`${API_URL}/analyze/cancel`, { method: 'POST' }); } catch {}
+    clearTimeout(timeoutRef.current);
+    try {
+      await fetch(`${API_URL}/analyze/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: jobIdRef.current }),
+      });
+    } catch {}
     abortControllerRef.current?.abort();
   }, []);
 
   const analyze = useCallback(async (source, sourceType, config = {}) => {
     userCancelledRef.current = false;
+    jobIdRef.current = null;
     abortControllerRef.current = new AbortController();
-    const timeoutId = setTimeout(() => abortControllerRef.current?.abort(), 900000);
+    timeoutRef.current = setTimeout(() => abortControllerRef.current?.abort(), 900000);
     setLoading(true);
     setError(null);
     setProgress('Initializing analysis...');
@@ -56,7 +66,9 @@ export function useAnalysis() {
           if (!raw) continue;
           try {
             const event = JSON.parse(raw);
-            if (event.type === 'progress') {
+            if (event.type === 'started') {
+              jobIdRef.current = event.job_id;
+            } else if (event.type === 'progress') {
               const msg = event.total > 0
                 ? `${event.message} (${event.current}/${event.total})`
                 : event.message;
@@ -94,7 +106,7 @@ export function useAnalysis() {
         setError(err.message || 'Unknown error');
       }
     } finally {
-      clearTimeout(timeoutId);
+      clearTimeout(timeoutRef.current);
       setLoading(false);
     }
   }, []);

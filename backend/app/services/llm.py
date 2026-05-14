@@ -34,22 +34,50 @@ class LLMClient:
             self.client = openai.OpenAI(api_key=self.api_key)
 
     def _extract_json(self, text: str) -> Optional[Dict]:
-        patterns = [
-            r"```json\s*(\{.*?\})\s*```",
-            r"```\s*(\{.*?\})\s*```",
-            r'(\{.*\})',  # greedy: first { to last } — catches any JSON object
-        ]
-        for pattern in patterns:
+        # Try direct parse first (clean LLM responses)
+        try:
+            return json.loads(text.strip())
+        except json.JSONDecodeError:
+            pass
+
+        # Try code-fence patterns (non-greedy stops correctly at the } before the fence)
+        for pattern in [r"```json\s*(\{.*?\})\s*```", r"```\s*(\{.*?\})\s*```"]:
             match = re.search(pattern, text, re.DOTALL)
             if match:
                 try:
                     return json.loads(match.group(1))
                 except json.JSONDecodeError:
                     continue
-        try:
-            return json.loads(text.strip())
-        except json.JSONDecodeError:
-            pass
+
+        # Balanced-brace extraction — handles trailing text/curly braces in string values
+        # that fool the greedy (\{.*\}) approach.
+        start = text.find('{')
+        if start == -1:
+            return None
+        depth = 0
+        in_string = False
+        escape = False
+        for i, c in enumerate(text[start:], start):
+            if escape:
+                escape = False
+                continue
+            if c == '\\' and in_string:
+                escape = True
+                continue
+            if c == '"':
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if c == '{':
+                depth += 1
+            elif c == '}':
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(text[start:i + 1])
+                    except json.JSONDecodeError:
+                        return None
         return None
 
     def analyze_file(self, file_path: str, language: str, content: str) -> Dict[str, Any]:
@@ -210,12 +238,13 @@ Focus on real, actionable issues. Do not pad with minor style nits."""
         response_text = self._call_llm(system_prompt, user_prompt, max_tokens=16384)
         parsed = self._extract_json(response_text)
         if parsed is None:
+            print(f"[analyze_bundle] parse failed. Raw response (first 1000 chars):\n{response_text[:1000]}", flush=True)
             return {
                 "issues": [],
                 "project_level_issues": [],
                 "overall_assessment": "[Parse Error] Bundle analysis response could not be parsed.",
                 "overall_risk_score": 50,
-                "_raw": response_text[:300],
+                "_raw": response_text[:1000],
             }
         return parsed
 

@@ -74,9 +74,9 @@ def get_repo_files(repo_path: str, max_file_size_kb: int = 500, max_files: int =
             lang = detect_language(file_path)
             files.append((rel_path, lang, size))
             if len(files) >= max_files:
-                break
+                break  # inner loop — stops current directory immediately
         if len(files) >= max_files:
-            break
+            break  # outer loop — stops walking further directories
     return files
 
 

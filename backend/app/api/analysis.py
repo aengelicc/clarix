@@ -2,11 +2,14 @@
 import asyncio
 import json
 import threading
-from fastapi import APIRouter, HTTPException
+import uuid
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from typing import Optional
 
-_cancel_event = threading.Event()
+# Per-job cancel events — keyed by job_id UUID. Never a global singleton.
+_cancel_events: dict = {}
+_cancel_events_lock = threading.Lock()
 
 
 class _AnalysisCancelled(Exception):
@@ -23,8 +26,20 @@ router = APIRouter()
 
 
 @router.post("/analyze/cancel")
-async def cancel_analysis():
-    _cancel_event.set()
+async def cancel_analysis(request: Request):
+    try:
+        body = await request.json()
+        job_id = body.get("job_id") if isinstance(body, dict) else None
+    except Exception:
+        job_id = None
+    with _cancel_events_lock:
+        if job_id:
+            event = _cancel_events.get(job_id)
+            if event:
+                event.set()
+        else:
+            for event in _cancel_events.values():
+                event.set()
     return {"status": "cancelled"}
 
 
@@ -33,13 +48,10 @@ def analyze_repo(request: AnalyzeRequest):
     """Analyze a GitHub repository or local folder."""
     ingestor = None
     try:
-        # Determine credentials
         pat = request.github_pat or settings.github_pat
 
-        # Derive analysis mode (static_only is the legacy flag)
         mode = "static" if request.static_only else request.analysis_mode
 
-        # Initialize LLM unless running static-only
         if mode == "static":
             llm_client = None
         else:
@@ -53,11 +65,9 @@ def analyze_repo(request: AnalyzeRequest):
             model = settings.anthropic_model if provider == "anthropic" else settings.openai_model
             llm_client = LLMClient(provider=provider, api_key=api_key, model=model)
 
-        # Ingest
         ingestor = RepoIngestor(github_pat=pat)
         repo_path, source_type, repo_name = ingestor.ingest(request.source)
 
-        # Discover files
         max_files = request.max_files or settings.max_files
         max_size = request.max_file_size_kb or settings.max_file_size_kb
         files = get_repo_files(repo_path, max_file_size_kb=max_size, max_files=max_files)
@@ -66,7 +76,6 @@ def analyze_repo(request: AnalyzeRequest):
             ingestor.cleanup()
             return AnalyzeResponse(success=False, error="No analyzable code files found in the repository.")
 
-        # Analyze
         analyzer = CodeAnalyzer(llm_client, max_file_tokens=settings.max_file_tokens)
         report = analyzer.analyze_repo(repo_path, files, repo_name, source_type, mode=mode)
 
@@ -93,7 +102,16 @@ async def analyze_repo_stream(request: AnalyzeRequest):
 
     def run_sync():
         import traceback as _tb
-        _cancel_event.clear()
+        job_id = str(uuid.uuid4())
+        cancel_event = threading.Event()
+        with _cancel_events_lock:
+            _cancel_events[job_id] = cancel_event
+
+        # Notify client of the job ID immediately so it can cancel specifically
+        asyncio.run_coroutine_threadsafe(
+            queue.put({"type": "started", "job_id": job_id}), loop
+        )
+
         ingestor = None
         error_msg = None
         report = None
@@ -128,22 +146,25 @@ async def analyze_repo_stream(request: AnalyzeRequest):
             if not files:
                 error_msg = "No analyzable code files found in the repository."
             else:
-                analyzer = CodeAnalyzer(llm_client, max_file_tokens=settings.max_file_tokens, cancel_event=_cancel_event)
+                analyzer = CodeAnalyzer(llm_client, max_file_tokens=settings.max_file_tokens, cancel_event=cancel_event)
                 report = analyzer.analyze_repo(repo_path, files, repo_name, source_type, on_progress=on_progress, mode=mode)
         except _AnalysisCancelled:
             cancelled = True
         except Exception as e:
-            error_msg = str(e)
-            print(f"[stream] analysis exception: {e}", flush=True)
+            # Return a generic message to the client; full traceback goes to server logs only.
+            error_msg = "Analysis failed due to an internal error. Check server logs for details."
+            print(f"[stream] analysis exception [{job_id}]: {e}", flush=True)
             _tb.print_exc()
         finally:
+            with _cancel_events_lock:
+                _cancel_events.pop(job_id, None)
             if ingestor:
                 try:
                     ingestor.cleanup()
                 except Exception:
                     pass
 
-        print(f"[stream] analysis done — error={error_msg!r} report={'set' if report else 'None'}", flush=True)
+        print(f"[stream] analysis done [{job_id}] — error={error_msg!r} report={'set' if report else 'None'}", flush=True)
 
         try:
             if cancelled:
@@ -159,29 +180,29 @@ async def analyze_repo_stream(request: AnalyzeRequest):
                     queue.put({"type": "error", "message": "Analyzer returned no report"}), loop
                 ).result(timeout=15)
             else:
-                print("[stream] serializing report...", flush=True)
+                print(f"[stream] serializing report [{job_id}]...", flush=True)
                 report_dict = report.model_dump(mode="json")
                 print(f"[stream] report serialized ({len(json.dumps(report_dict))} bytes), queuing complete event", flush=True)
                 asyncio.run_coroutine_threadsafe(
                     queue.put({"type": "complete", "report": report_dict}), loop
                 ).result(timeout=30)
-                print("[stream] complete event queued", flush=True)
+                print(f"[stream] complete event queued [{job_id}]", flush=True)
         except Exception as e:
-            print(f"[stream] exception delivering result: {e}", flush=True)
+            print(f"[stream] exception delivering result [{job_id}]: {e}", flush=True)
             _tb.print_exc()
             try:
                 asyncio.run_coroutine_threadsafe(
-                    queue.put({"type": "error", "message": f"Failed to deliver result: {e}"}), loop
+                    queue.put({"type": "error", "message": "Failed to deliver result"}), loop
                 ).result(timeout=10)
             except Exception:
                 pass
         finally:
-            print("[stream] sending sentinel", flush=True)
+            print(f"[stream] sending sentinel [{job_id}]", flush=True)
             try:
                 asyncio.run_coroutine_threadsafe(queue.put(None), loop).result(timeout=10)
             except Exception as e:
-                print(f"[stream] failed to send sentinel: {e}", flush=True)
-            print("[stream] run_sync complete", flush=True)
+                print(f"[stream] failed to send sentinel [{job_id}]: {e}", flush=True)
+            print(f"[stream] run_sync complete [{job_id}]", flush=True)
 
     threading.Thread(target=run_sync, daemon=True).start()
 
@@ -194,7 +215,7 @@ async def analyze_repo_stream(request: AnalyzeRequest):
                 yield f"data: {json.dumps(item)}\n\n"
             except Exception as e:
                 print(f"[stream] generator serialization error: {e}", flush=True)
-                yield f"data: {json.dumps({'type': 'error', 'message': f'Serialization error: {e}'})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Serialization error'})}\n\n"
                 break
 
     return StreamingResponse(

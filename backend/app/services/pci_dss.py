@@ -2,7 +2,7 @@
 import re
 from pathlib import Path
 from typing import List
-from app.core.models import Issue, ComplianceChecklistItem, Severity, Category
+from app.core.models import Issue, ComplianceChecklistItem, Severity, Category, SEVERITY_ORDER
 
 # (name, pattern, severity, pci_ref, recommendation)
 PCI_PATTERNS = [
@@ -117,7 +117,6 @@ PCI_CHECKLIST_TEMPLATE = [
     },
 ]
 
-_SEV_ORDER = ["info", "low", "medium", "high", "critical"]
 
 
 def scan_pci(file_path: Path, relative_path: str, language: str, content: str) -> List[Issue]:
@@ -154,7 +153,7 @@ def build_pci_checklist(all_issues: List[Issue]) -> List[ComplianceChecklistItem
             if i.compliance_ref and item["ref_substring"] in i.compliance_ref
         ]
         worst_idx = max(
-            (_SEV_ORDER.index(i.severity.value) for i in relevant),
+            (SEVERITY_ORDER.index(i.severity.value) for i in relevant),
             default=-1,
         )
         checklist.append(ComplianceChecklistItem(
@@ -164,6 +163,6 @@ def build_pci_checklist(all_issues: List[Issue]) -> List[ComplianceChecklistItem
             description=item["description"],
             findings_count=len(relevant),
             status="fail" if relevant else "pass",
-            worst_severity=_SEV_ORDER[worst_idx] if worst_idx >= 0 else None,
+            worst_severity=SEVERITY_ORDER[worst_idx] if worst_idx >= 0 else None,
         ))
     return checklist

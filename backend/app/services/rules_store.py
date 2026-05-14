@@ -1,6 +1,7 @@
 """Persistent store for security scanning rules (built-in + custom)."""
 import json
 import re
+import threading
 import uuid
 from pathlib import Path
 from typing import List, Optional
@@ -11,15 +12,17 @@ DATA_FILE = Path(__file__).parent.parent / "data" / "rules.json"
 
 _cache: Optional[List[SecurityRule]] = None
 _cache_mtime: float = 0.0
+_lock = threading.RLock()
 
 
 def _save(rules: List[SecurityRule]) -> None:
     global _cache, _cache_mtime
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(DATA_FILE, "w") as f:
-        json.dump([r.model_dump(mode="json") for r in rules], f, indent=2)
-    _cache = rules
-    _cache_mtime = DATA_FILE.stat().st_mtime
+    with _lock:
+        with open(DATA_FILE, "w") as f:
+            json.dump([r.model_dump(mode="json") for r in rules], f, indent=2)
+        _cache = rules
+        _cache_mtime = DATA_FILE.stat().st_mtime
 
 
 def _seed() -> None:
@@ -122,17 +125,18 @@ def _seed() -> None:
 
 def _load() -> List[SecurityRule]:
     global _cache, _cache_mtime
-    if not DATA_FILE.exists():
-        _seed()
-        return _cache  # type: ignore[return-value]
-    mtime = DATA_FILE.stat().st_mtime
-    if _cache is not None and mtime == _cache_mtime:
+    with _lock:
+        if not DATA_FILE.exists():
+            _seed()
+            return _cache  # type: ignore[return-value]
+        mtime = DATA_FILE.stat().st_mtime
+        if _cache is not None and mtime == _cache_mtime:
+            return _cache
+        with open(DATA_FILE) as f:
+            data = json.load(f)
+        _cache = [SecurityRule(**r) for r in data]
+        _cache_mtime = mtime
         return _cache
-    with open(DATA_FILE) as f:
-        data = json.load(f)
-    _cache = [SecurityRule(**r) for r in data]
-    _cache_mtime = mtime
-    return _cache
 
 
 def get_all_rules() -> List[SecurityRule]:
@@ -150,9 +154,18 @@ def get_active_rules(scanner: Optional[str] = None, rule_type: Optional[str] = N
 
 def _validate_pattern(pattern: str) -> None:
     try:
-        re.compile(pattern)
+        compiled = re.compile(pattern)
     except re.error as exc:
         raise ValueError(f"Invalid regex: {exc}") from exc
+    # Test against a pathological input to catch catastrophic backtracking (ReDoS).
+    done = threading.Event()
+    def _probe():
+        compiled.search("a" * 5000)
+        done.set()
+    t = threading.Thread(target=_probe, daemon=True)
+    t.start()
+    if not done.wait(timeout=1.0):
+        raise ValueError("Pattern rejected: timed out on test input (potential ReDoS)")
 
 
 def add_rule(create: SecurityRuleCreate) -> SecurityRule:
@@ -180,10 +193,12 @@ def update_rule(rule_id: str, update: SecurityRuleUpdate) -> SecurityRule:
 
 def delete_rule(rule_id: str) -> None:
     rules = _load()
-    filtered = [r for r in rules if r.id != rule_id]
-    if len(filtered) == len(rules):
+    target = next((r for r in rules if r.id == rule_id), None)
+    if target is None:
         raise KeyError(rule_id)
-    _save(filtered)
+    if target.builtin:
+        raise ValueError(f"Built-in rule '{rule_id}' cannot be deleted; use update to disable it.")
+    _save([r for r in rules if r.id != rule_id])
 
 
 def bulk_update_enabled(enabled: bool) -> List[SecurityRule]:

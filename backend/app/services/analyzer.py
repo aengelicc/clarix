@@ -335,11 +335,15 @@ class CodeAnalyzer:
     # ------------------------------------------------------------------
 
     def _calculate_risk_score(self, all_issues: List[Issue], llm_suggested_score=None) -> int:
-        base = int(llm_suggested_score) if isinstance(llm_suggested_score, (int, float)) else 0
         weights = {Severity.CRITICAL: 25, Severity.HIGH: 10, Severity.MEDIUM: 4, Severity.LOW: 1, Severity.INFO: 0}
-        score = base + sum(weights.get(i.severity, 1) for i in all_issues)
-        sec_count = sum(
-            1 for i in all_issues
-            if i.category == Category.SECURITY and i.severity in (Severity.CRITICAL, Severity.HIGH)
-        )
-        return min(100, max(0, score + sec_count * 5))
+        static_score = 0
+        sec_bonus = 0
+        for issue in all_issues:
+            static_score += weights.get(issue.severity, 1)
+            if issue.category == Category.SECURITY and issue.severity in (Severity.CRITICAL, Severity.HIGH):
+                sec_bonus += 5
+        static_component = min(100, static_score + sec_bonus)
+        if isinstance(llm_suggested_score, (int, float)):
+            llm_component = max(0, min(100, int(llm_suggested_score)))
+            return min(100, max(static_component, llm_component))
+        return static_component
