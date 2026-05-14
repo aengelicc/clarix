@@ -11,9 +11,9 @@ export default function Header() {
             </div>
             <span className="text-xl font-bold text-slate-900 tracking-tight">Clarix</span>
           </div>
-          <a 
-            href="https://github.com" 
-            target="_blank" 
+          <a
+            href="https://github.com/aengelicc"
+            target="_blank"
             rel="noopener noreferrer"
             className="text-slate-500 hover:text-slate-700 transition-colors"
           >
