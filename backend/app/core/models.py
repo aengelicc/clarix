@@ -1,5 +1,5 @@
 """Pydantic models for Clarix API."""
-from typing import List, Optional, Dict, Any
+from typing import List, Literal, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from enum import Enum
 
@@ -132,7 +132,8 @@ class AnalyzeRequest(BaseModel):
     api_key: Optional[str] = None       # overrides server-side env var for this request
     max_files: Optional[int] = None
     max_file_size_kb: Optional[int] = None
-    static_only: bool = False
+    static_only: bool = False  # deprecated — use analysis_mode="static"
+    analysis_mode: Literal["static", "per_file", "bundle"] = "per_file"
 
 
 class AnalyzeResponse(BaseModel):

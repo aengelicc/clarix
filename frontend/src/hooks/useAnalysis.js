@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 const API_URL = '/api';
 
@@ -7,8 +7,19 @@ export function useAnalysis() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [progress, setProgress] = useState('');
+  const abortControllerRef = useRef(null);
+  const userCancelledRef = useRef(false);
+
+  const cancel = useCallback(async () => {
+    userCancelledRef.current = true;
+    try { await fetch(`${API_URL}/analyze/cancel`, { method: 'POST' }); } catch {}
+    abortControllerRef.current?.abort();
+  }, []);
 
   const analyze = useCallback(async (source, sourceType, config = {}) => {
+    userCancelledRef.current = false;
+    abortControllerRef.current = new AbortController();
+    const timeoutId = setTimeout(() => abortControllerRef.current?.abort(), 900000);
     setLoading(true);
     setError(null);
     setProgress('Initializing analysis...');
@@ -18,7 +29,7 @@ export function useAnalysis() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source, source_type: sourceType, ...config }),
-        signal: AbortSignal.timeout(300000),
+        signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) {
@@ -51,15 +62,23 @@ export function useAnalysis() {
                 : event.message;
               setProgress(msg);
             } else if (event.type === 'complete') {
-              setReport(event.report);
-              setProgress('Complete');
+              if (event.report) {
+                setReport(event.report);
+                setProgress('Complete');
+              } else {
+                setError('Analysis completed but the report was empty. Please try again.');
+              }
+              completed = true;
+            } else if (event.type === 'cancelled') {
               completed = true;
             } else if (event.type === 'error') {
-              setError(event.message);
+              setError(event.message || 'An unknown error occurred.');
               completed = true;
             }
           } catch (e) {
             console.error('SSE parse error:', e, 'raw:', raw.slice(0, 200));
+            setError(`Failed to parse analysis result: ${e.message}`);
+            completed = true;
           }
         }
         if (completed) break;
@@ -69,10 +88,13 @@ export function useAnalysis() {
         setError('Analysis stream ended without a result. Check the browser console for details.');
       }
     } catch (err) {
-      if (err.name !== 'AbortError') {
+      if (err.name === 'AbortError' && !userCancelledRef.current) {
+        setError('Analysis timed out (15 min limit). Try enabling Static analysis only, or reduce Max Files in settings.');
+      } else if (err.name !== 'AbortError') {
         setError(err.message || 'Unknown error');
       }
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   }, []);
@@ -83,5 +105,5 @@ export function useAnalysis() {
     setProgress('');
   }, []);
 
-  return { report, loading, error, progress, analyze, clear };
+  return { report, loading, error, progress, analyze, cancel, clear };
 }

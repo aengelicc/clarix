@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Search, Folder, Loader2, Settings2, KeyRound, FolderOpen } from 'lucide-react';
 
-export default function InputForm({ onAnalyze, loading, progress }) {
+export default function InputForm({ onAnalyze, onCancel, loading, progress }) {
   const [sourceType, setSourceType] = useState('github');
   const [source, setSource] = useState('');
   const [showSettings, setShowSettings] = useState(false);
@@ -11,7 +11,7 @@ export default function InputForm({ onAnalyze, loading, progress }) {
     llm_provider: 'anthropic',
     api_key: '',
     github_pat: '',
-    static_only: false,
+    analysis_mode: 'per_file',
   });
 
   const [browsing, setBrowsing] = useState(false);
@@ -122,24 +122,47 @@ export default function InputForm({ onAnalyze, loading, progress }) {
         {/* Settings Panel */}
         {showSettings && (
           <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-4">
-            {/* Static-only toggle */}
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={config.static_only}
-                onChange={(e) => setConfig({ ...config, static_only: e.target.checked })}
-                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-              />
-              <div>
-                <span className="text-xs font-semibold text-slate-700">Static analysis only (no LLM)</span>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Run regex and pattern-matching scanners only. No API key required. Faster, but no AI code review.
-                </p>
+            {/* Analysis mode selector */}
+            <div>
+              <span className="block text-xs font-semibold text-slate-700 mb-2">Analysis Mode</span>
+              <div className="space-y-2">
+                {[
+                  {
+                    value: 'static',
+                    label: 'Static only',
+                    desc: 'Regex and pattern-matching scanners only. No API key required. Fastest.',
+                  },
+                  {
+                    value: 'per_file',
+                    label: 'Per-file AI (default)',
+                    desc: 'AI reviews each file individually. Best for pinpointing specific line-level issues.',
+                  },
+                  {
+                    value: 'bundle',
+                    label: 'Bundle AI',
+                    desc: 'Sends the whole codebase in one AI call. Fewer round-trips, catches cross-file issues. Best for smaller repos.',
+                  },
+                ].map(({ value, label, desc }) => (
+                  <label key={value} className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="analysis_mode"
+                      value={value}
+                      checked={config.analysis_mode === value}
+                      onChange={() => setConfig({ ...config, analysis_mode: value })}
+                      className="mt-0.5 w-3.5 h-3.5 border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div>
+                      <span className="text-xs font-semibold text-slate-700">{label}</span>
+                      <p className="text-xs text-slate-500">{desc}</p>
+                    </div>
+                  </label>
+                ))}
               </div>
-            </label>
+            </div>
 
             {/* API Configuration */}
-            <div className={config.static_only ? 'opacity-40 pointer-events-none select-none' : ''}>
+            <div className={config.analysis_mode === 'static' ? 'opacity-40 pointer-events-none select-none' : ''}>
               <div className="flex items-center gap-1.5 mb-3">
                 <KeyRound size={14} className="text-slate-500" />
                 <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider">API Configuration</span>
@@ -228,24 +251,31 @@ export default function InputForm({ onAnalyze, loading, progress }) {
           </div>
         )}
 
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={loading || !source.trim()}
-          className="btn-primary w-full justify-center"
-        >
-          {loading ? (
-            <>
+        {/* Submit / Cancel */}
+        {loading ? (
+          <div className="flex gap-3">
+            <div className="btn-primary flex-1 justify-center pointer-events-none opacity-80">
               <Loader2 className="animate-spin" size={20} />
               {progress || 'Analyzing...'}
-            </>
-          ) : (
-            <>
-              <Search size={20} />
-              Start Analysis
-            </>
-          )}
-        </button>
+            </div>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="btn-secondary shrink-0"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            type="submit"
+            disabled={!source.trim()}
+            className="btn-primary w-full justify-center"
+          >
+            <Search size={20} />
+            Start Analysis
+          </button>
+        )}
       </form>
     </div>
   );

@@ -6,6 +6,12 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from typing import Optional
 
+_cancel_event = threading.Event()
+
+
+class _AnalysisCancelled(Exception):
+    pass
+
 from app.core.models import AnalyzeRequest, AnalyzeResponse, ProjectReport
 from app.core.config import settings
 from app.services.ingestion import RepoIngestor
@@ -16,6 +22,12 @@ from app.services.file_utils import get_repo_files
 router = APIRouter()
 
 
+@router.post("/analyze/cancel")
+async def cancel_analysis():
+    _cancel_event.set()
+    return {"status": "cancelled"}
+
+
 @router.post("/analyze", response_model=AnalyzeResponse)
 def analyze_repo(request: AnalyzeRequest):
     """Analyze a GitHub repository or local folder."""
@@ -24,8 +36,11 @@ def analyze_repo(request: AnalyzeRequest):
         # Determine credentials
         pat = request.github_pat or settings.github_pat
 
+        # Derive analysis mode (static_only is the legacy flag)
+        mode = "static" if request.static_only else request.analysis_mode
+
         # Initialize LLM unless running static-only
-        if request.static_only:
+        if mode == "static":
             llm_client = None
         else:
             provider = request.llm_provider or settings.llm_provider
@@ -53,7 +68,7 @@ def analyze_repo(request: AnalyzeRequest):
 
         # Analyze
         analyzer = CodeAnalyzer(llm_client, max_file_tokens=settings.max_file_tokens)
-        report = analyzer.analyze_repo(repo_path, files, repo_name, source_type, static_only=request.static_only)
+        report = analyzer.analyze_repo(repo_path, files, repo_name, source_type, mode=mode)
 
         ingestor.cleanup()
         return AnalyzeResponse(success=True, report=report)
@@ -78,13 +93,17 @@ async def analyze_repo_stream(request: AnalyzeRequest):
 
     def run_sync():
         import traceback as _tb
+        _cancel_event.clear()
         ingestor = None
         error_msg = None
         report = None
+        cancelled = False
         try:
             pat = request.github_pat or settings.github_pat
 
-            if request.static_only:
+            mode = "static" if request.static_only else request.analysis_mode
+
+            if mode == "static":
                 llm_client = None
             else:
                 provider = request.llm_provider or settings.llm_provider
@@ -109,8 +128,10 @@ async def analyze_repo_stream(request: AnalyzeRequest):
             if not files:
                 error_msg = "No analyzable code files found in the repository."
             else:
-                analyzer = CodeAnalyzer(llm_client, max_file_tokens=settings.max_file_tokens)
-                report = analyzer.analyze_repo(repo_path, files, repo_name, source_type, on_progress=on_progress, static_only=request.static_only)
+                analyzer = CodeAnalyzer(llm_client, max_file_tokens=settings.max_file_tokens, cancel_event=_cancel_event)
+                report = analyzer.analyze_repo(repo_path, files, repo_name, source_type, on_progress=on_progress, mode=mode)
+        except _AnalysisCancelled:
+            cancelled = True
         except Exception as e:
             error_msg = str(e)
             print(f"[stream] analysis exception: {e}", flush=True)
@@ -125,7 +146,11 @@ async def analyze_repo_stream(request: AnalyzeRequest):
         print(f"[stream] analysis done — error={error_msg!r} report={'set' if report else 'None'}", flush=True)
 
         try:
-            if error_msg:
+            if cancelled:
+                asyncio.run_coroutine_threadsafe(
+                    queue.put({"type": "cancelled"}), loop
+                ).result(timeout=10)
+            elif error_msg:
                 asyncio.run_coroutine_threadsafe(
                     queue.put({"type": "error", "message": error_msg}), loop
                 ).result(timeout=15)

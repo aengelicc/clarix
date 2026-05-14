@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, Component } from 'react';
 import { Shield, AlertCircle } from 'lucide-react';
 import { useAnalysis } from './hooks/useAnalysis';
 import Header from './components/Header';
@@ -6,8 +6,30 @@ import InputForm from './components/InputForm';
 import Dashboard from './components/Dashboard';
 import RulesManager from './components/RulesManager';
 
+class AppErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="max-w-2xl mx-auto mt-16 p-6 bg-red-50 border border-red-200 rounded-xl">
+          <h2 className="text-red-800 font-semibold text-lg mb-2">Something went wrong rendering the report</h2>
+          <p className="text-red-700 text-sm mb-4">{this.state.error.message}</p>
+          <pre className="text-xs bg-slate-900 text-slate-200 p-4 rounded-lg overflow-auto max-h-48 whitespace-pre-wrap mb-4">
+            {this.state.error.stack}
+          </pre>
+          <button onClick={() => this.setState({ error: null })} className="btn-secondary text-sm">
+            ← Start over
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
-  const { report, loading, error, progress, analyze, clear } = useAnalysis();
+  const { report, loading, error, progress, analyze, cancel, clear } = useAnalysis();
   const [showRules, setShowRules] = useState(false);
 
   return (
@@ -34,7 +56,7 @@ function App() {
               </p>
             </div>
 
-            <InputForm onAnalyze={analyze} loading={loading} progress={progress} />
+            <InputForm onAnalyze={analyze} onCancel={cancel} loading={loading} progress={progress} />
 
             <div className="mt-4 text-center">
               <button onClick={() => setShowRules(true)} className="text-xs text-slate-400 hover:text-slate-600 underline">
@@ -53,7 +75,9 @@ function App() {
             )}
           </div>
         ) : (
-          <Dashboard report={report} onReset={clear} />
+          <AppErrorBoundary>
+            <Dashboard report={report} onReset={clear} />
+          </AppErrorBoundary>
         )}
       </main>
     </div>

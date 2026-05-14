@@ -157,11 +157,73 @@ Risk score: 0-100 where 0 = pristine, 100 = critical issues blocking deployment.
             }
         return parsed
 
-    def _call_llm(self, system_prompt: str, user_prompt: str) -> str:
+    def analyze_bundle(self, files: list) -> dict:
+        """Analyze multiple files in one LLM call. Returns flat issue list + project summary."""
+        system_prompt = """You are an expert code reviewer specializing in security, bugs, and software architecture.
+
+You will receive multiple source files from a codebase, each preceded by a header showing its path and language, with line numbers. Analyze all files together, catching both per-file issues and cross-cutting concerns.
+
+For each issue found:
+- file: exact file path from the === FILE: ... === header
+- category: exactly one of "bug", "security", "performance", "refactoring", "deployment"
+- severity: exactly one of "critical", "high", "medium", "low"
+- line: line number (integer) where the issue occurs, or null
+- description: clear explanation of the problem (2-3 sentences)
+- recommendation: concrete fix or improvement, with a short code example if helpful
+
+Return ONLY a JSON object in this exact format (no markdown, no text outside the JSON):
+{
+  "issues": [
+    {
+      "file": "src/auth.py",
+      "category": "security",
+      "severity": "high",
+      "line": 15,
+      "description": "User input passed directly to exec() without sanitization.",
+      "recommendation": "Use ast.literal_eval() or a strict whitelist parser instead."
+    }
+  ],
+  "project_level_issues": [
+    {
+      "file": "project-wide",
+      "category": "deployment",
+      "severity": "medium",
+      "line": null,
+      "description": "No health-check endpoint found across the project.",
+      "recommendation": "Add a /health route that returns 200 OK for load-balancer probes."
+    }
+  ],
+  "overall_assessment": "2-3 paragraph executive summary of overall code quality, security posture, and the highest-priority actions the team should take.",
+  "overall_risk_score": 65
+}
+
+Risk score: 0=pristine, 100=critical issues blocking deployment.
+Focus on real, actionable issues. Do not pad with minor style nits."""
+
+        bundle_text = ""
+        for f in files:
+            bundle_text += f"\n=== FILE: {f['path']} ({f['language']}) ===\n"
+            for i, line in enumerate(f["content"].splitlines(), 1):
+                bundle_text += f"{i:6d}: {line}\n"
+
+        user_prompt = f"Analyze the following codebase:\n{bundle_text}"
+        response_text = self._call_llm(system_prompt, user_prompt, max_tokens=16384)
+        parsed = self._extract_json(response_text)
+        if parsed is None:
+            return {
+                "issues": [],
+                "project_level_issues": [],
+                "overall_assessment": "[Parse Error] Bundle analysis response could not be parsed.",
+                "overall_risk_score": 50,
+                "_raw": response_text[:300],
+            }
+        return parsed
+
+    def _call_llm(self, system_prompt: str, user_prompt: str, max_tokens: int = 4096) -> str:
         if self.provider == "anthropic":
             message = self.client.messages.create(
                 model=self.model,
-                max_tokens=4096,
+                max_tokens=max_tokens,
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}]
             )
@@ -174,6 +236,6 @@ Risk score: 0-100 where 0 = pristine, 100 = critical issues blocking deployment.
                     {"role": "user", "content": user_prompt}
                 ],
                 temperature=0.2,
-                max_tokens=4096
+                max_tokens=max_tokens
             )
             return response.choices[0].message.content
