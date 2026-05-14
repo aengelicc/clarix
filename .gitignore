@@ -19,6 +19,7 @@ frontend/dist/
 
 # Claude Code local state
 .claude/
+CLAUDE.md
 CONTEXT.md
 
 # Dual-graph MCP local state
