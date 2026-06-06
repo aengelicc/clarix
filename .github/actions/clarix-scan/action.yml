@@ -1,5 +1,5 @@
 name: 'Clarix Security Scan'
-description: 'Run Clarix static analysis on a repository and upload the results to GitHub Code Scanning.'
+description: 'Run Clarix static analysis and produce a SARIF file. Uploading to GitHub Code Scanning and posting a PR comment are the caller's responsibility.'
 branding:
   icon: 'shield'
   color: 'red'
@@ -25,14 +25,10 @@ inputs:
     description: "How to install the Clarix CLI: 'remote' (clone aengelicc/clarix at clarix-ref) or 'local' (use the checkout's own backend/ directory — useful when developing Clarix in this same repo)."
     required: false
     default: 'remote'
-  sarif-category:
-    description: 'Category label for the GitHub Code Scanning upload.'
+  sarif-output:
+    description: 'Absolute path on the runner where the SARIF file will be written.'
     required: false
-    default: 'clarix'
-  comment-on-pr:
-    description: 'Post (or update) a sticky PR comment summarising top findings.'
-    required: false
-    default: 'true'
+    default: '${{ runner.temp }}/clarix-out/results.sarif'
   max-files:
     description: 'Override Clarix MAX_FILES (number of files to scan).'
     required: false
@@ -44,7 +40,7 @@ inputs:
 
 outputs:
   sarif-file:
-    description: 'Path to the generated SARIF file.'
+    description: 'Path to the generated SARIF file (always set, even on findings).'
     value: ${{ steps.scan.outputs.sarif }}
   finding-count:
     description: 'Number of findings in the SARIF report.'
@@ -79,13 +75,11 @@ runs:
 
     - name: Run Clarix scan
       id: scan
-      # continue-on-error: a non-zero exit means "findings at/above fail-on", not
-      # a broken action. The exit code is surfaced via steps.scan.outputs.exit-code
-      # so consumers can gate their own workflow on it. SARIF is uploaded either way.
       continue-on-error: true
       shell: bash
       run: |
-        mkdir -p "$RUNNER_TEMP/clarix-out"
+        set +e
+        mkdir -p "$(dirname "${{ inputs.sarif-output }}")"
         cd "$GITHUB_WORKSPACE/${{ inputs.path }}"
 
         ARGS=(scan . --format sarif --severity-threshold "${{ inputs.severity-threshold }}")
@@ -95,40 +89,17 @@ runs:
         if [ -n "${{ inputs.max-files }}" ]; then
           ARGS+=(--max-files "${{ inputs.max-files }}")
         fi
-        ARGS+=(--output "$RUNNER_TEMP/clarix-out/results.sarif")
+        ARGS+=(--output "${{ inputs.sarif-output }}")
 
-        set +e
         clarix "${ARGS[@]}"
         EXIT_CODE=$?
-        set -e
 
-        FINDING_COUNT=$(python "${{ github.action_path }}/find_count.py" "$RUNNER_TEMP/clarix-out/results.sarif")
+        FINDING_COUNT=$(python "${{ github.action_path }}/find_count.py" "${{ inputs.sarif-output }}")
 
-        echo "sarif=$RUNNER_TEMP/clarix-out/results.sarif" >> "$GITHUB_OUTPUT"
-        echo "finding-count=$FINDING_COUNT" >> "$GITHUB_OUTPUT"
-        echo "exit-code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+        {
+          echo "sarif=${{ inputs.sarif-output }}"
+          echo "finding-count=$FINDING_COUNT"
+          echo "exit-code=$EXIT_CODE"
+        } >> "$GITHUB_OUTPUT"
         echo "::notice title=Clarix::$FINDING_COUNT finding(s) at threshold=${{ inputs.severity-threshold }}"
-
-    - name: Upload SARIF to GitHub Code Scanning
-      if: hashFiles('${{ steps.scan.outputs.sarif }}') != ''
-      uses: github/codeql-action/upload-sarif@v3
-      with:
-        sarif_file: ${{ steps.scan.outputs.sarif }}
-        category: ${{ inputs.sarif-category }}
-
-    - name: Post PR comment
-      if: inputs.comment-on-pr == 'true' && github.event_name == 'pull_request'
-      uses: marocchino/sticky-pull-request-comment@v2
-      with:
-        header: clarix
-        message: |
-          ## Clarix Security Scan
-
-          **Findings:** ${{ steps.scan.outputs.finding-count }}
-          **Threshold:** ${{ inputs.severity-threshold }} (fail-on: ${{ inputs.fail-on || inputs.severity-threshold }})
-
-          <details>
-          <summary>SARIF uploaded to GitHub Code Scanning under <code>${{ inputs.sarif-category }}</code></summary>
-
-          Open the **Security → Code scanning** tab to view annotated diffs and rule details.
-          </details>
+        exit 0
