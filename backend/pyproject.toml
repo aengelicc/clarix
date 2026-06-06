@@ -105,3 +105,10 @@ exclude = ["build/", "tests/fixtures/"]
 [[tool.mypy.overrides]]
 module = ["tests.*"]
 check_untyped_defs = true
+
+# ---- Pytest configuration ---------------------------------------------------
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: perf / load tests; skip on quick runs with `-m 'not slow'`",
+]
