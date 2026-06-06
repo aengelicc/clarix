@@ -38,13 +38,13 @@ Clarix is built for the *right before I push* moment:
 
 ## Screenshots
 
-> Drop a screenshot of the dashboard and a scan-in-progress GIF into `docs/img/` and reference them here.
+> Drop a screenshot of the dashboard and a scan-in-progress GIF into `docs/img/` and reference them here. Both files are referenced in the table below — once added, GitHub will render them as live previews.
 
 | Dashboard | Live scan |
-|-----------|-----------|
-| _`docs/img/dashboard.png`_ | _`docs/img/scan-streaming.gif`_ |
+|:---------:|:---------:|
+| `docs/img/dashboard.png` | `docs/img/scan-streaming.gif` |
 
-> Tip: also upload `docs/img/banner.png` as your **social preview image** in `Settings → General → Social preview` (1280×640 crop). It will show up on Twitter/LinkedIn/Slack when someone pastes the repo link.
+> 💡 **Tip:** also upload `docs/img/banner.png` as your **social preview image** in `Settings → General → Social preview` (1280×640 crop). It will show up on Twitter/LinkedIn/Slack when someone pastes the repo link.
 
 ---
 
