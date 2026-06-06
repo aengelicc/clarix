@@ -55,6 +55,29 @@ class CodeAnalyzer:
             + scan_cis(abs_path, rel_path_str, language, content)
         )
 
+    def _filter_false_positives(self, issues: list[Issue]) -> list[Issue]:
+        """Drop issues that match an FP mark in the store.
+
+        Static-scanner issues (rule_id set) match on (file_path, rule_id).
+        LLM-detected issues (rule_id None) match on (file_path,
+        description_hash). The store is consulted once per call.
+        """
+        if not issues:
+            return issues
+        from app.services import fp_store
+        from app.services.fp_store import hash_description
+
+        kept: list[Issue] = []
+        for issue in issues:
+            if issue.rule_id is not None:
+                if fp_store.is_marked(issue.file, rule_id=issue.rule_id):
+                    continue
+            else:
+                if fp_store.is_marked(issue.file, description_hash=hash_description(issue.description)):
+                    continue
+            kept.append(issue)
+        return kept
+
     def analyze_repo(
         self,
         repo_path: str,
@@ -227,7 +250,7 @@ class CodeAnalyzer:
                 except (ValueError, KeyError):
                     continue
 
-            combined = static_issues + llm_issues
+            combined = self._filter_false_positives(static_issues + llm_issues)
             all_issues.extend(combined)
             file_analyses.append(FileAnalysis(
                 file_path=str(rel_path),
@@ -348,7 +371,7 @@ class CodeAnalyzer:
                 ))
                 continue
 
-            static_issues = d["static_issues"]
+            static_issues = self._filter_false_positives(d["static_issues"])
             all_issues.extend(static_issues)
 
             if path in excluded:
@@ -359,7 +382,7 @@ class CodeAnalyzer:
                 ))
                 continue
 
-            llm_issues = llm_by_file.get(path, [])
+            llm_issues = self._filter_false_positives(llm_by_file.get(path, []))
             all_issues.extend(llm_issues)
             combined = static_issues + llm_issues
             n_ai = len(llm_issues)

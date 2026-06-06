@@ -6,6 +6,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.api.analysis import router as analysis_router
 from app.api.browse import router as browse_router
+from app.api.fp_marks import router as fp_marks_router
 from app.api.rules import router as rules_router
 from app.core.config import settings
 
@@ -40,6 +41,7 @@ _auth_dep = [Depends(_require_auth)]
 app.include_router(analysis_router, prefix="/api", tags=["analysis"], dependencies=_auth_dep)
 app.include_router(browse_router, prefix="/api", tags=["browse"], dependencies=_auth_dep)
 app.include_router(rules_router, prefix="/api", tags=["rules"], dependencies=_auth_dep)
+app.include_router(fp_marks_router, prefix="/api", tags=["fp-marks"], dependencies=_auth_dep)
 
 
 @app.get("/api/health")
