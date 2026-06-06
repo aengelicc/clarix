@@ -39,7 +39,7 @@ class _StubLLM:
             + self.synthesize_project_calls
         )
 
-    def analyze_file(self, file_path: str, language: str, content: str, frameworks: list | None = None) -> dict:
+    def analyze_file(self, file_path: str, language: str, content: str, frameworks: list | None = None, context: str = "") -> dict:
         self.analyze_file_calls += 1
         return {"issues": [], "summary": "stub"}
 

@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     llm_cache_ttl_seconds: int = 7 * 24 * 3600  # one week
     llm_cache_max_entries: int = 1024
 
+    # Cross-file context for per-file LLM mode. When enabled, the analyzer
+    # follows the file's same-repo imports and inlines a budget-capped
+    # snippet of each (top 100 lines) into the LLM prompt. Off by default
+    # because it costs tokens on every per-file scan.
+    cross_file_context_enabled: bool = False
+    cross_file_context_max_tokens: int = 2000
+
     class Config:
         env_file = str(_HERE.parent.parent / ".env")
         env_file_encoding = "utf-8"

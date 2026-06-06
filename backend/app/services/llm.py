@@ -88,6 +88,7 @@ class LLMClient:
         language: str,
         content: str,
         frameworks: list[str] | None = None,
+        context: str = "",
     ) -> dict[str, Any]:
         framework_block = get_framework_block(frameworks)
         system_prompt = framework_block + """You are an expert code reviewer with 15 years of experience in software engineering, security, and performance optimization.
@@ -123,6 +124,8 @@ Return ONLY a JSON object in this exact format (no markdown, no explanations out
 If no issues are found, return {"issues": [], "summary": "No significant issues found. Code appears well-structured and secure."}"""
 
         user_prompt = f"File: {file_path}\nLanguage: {language}\n\n```\n{content}\n```"
+        if context:
+            user_prompt = f"{user_prompt}\n{context}"
         response_text = self._call_llm(system_prompt, user_prompt)
         parsed = self._extract_json(response_text)
         if parsed is None:

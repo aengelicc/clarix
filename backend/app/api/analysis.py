@@ -67,6 +67,8 @@ def _run_analysis(request: AnalyzeRequest, cancel_event: threading.Event | None 
             max_file_tokens=settings.max_file_tokens,
             cancel_event=cancel_event,
             frameworks=request.frameworks,
+            cross_file_context=settings.cross_file_context_enabled,
+            cross_file_context_max_tokens=settings.cross_file_context_max_tokens,
         )
         report = analyzer.analyze_repo(
             repo_path, files, repo_name, source_type,
@@ -219,6 +221,8 @@ async def analyze_repo_stream(request: AnalyzeRequest):
                     max_file_tokens=settings.max_file_tokens,
                     cancel_event=cancel_event,
                     frameworks=request.frameworks,
+                    cross_file_context=settings.cross_file_context_enabled,
+                    cross_file_context_max_tokens=settings.cross_file_context_max_tokens,
                 )
                 report = analyzer.analyze_repo(
                     repo_path, files, repo_name, source_type,

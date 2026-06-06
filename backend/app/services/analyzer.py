@@ -24,6 +24,8 @@ class CodeAnalyzer:
         max_file_tokens: int = 8000,
         cancel_event=None,
         frameworks: list[str] | None = None,
+        cross_file_context: bool = False,
+        cross_file_context_max_tokens: int = 2000,
     ):
         self.llm = llm_client
         self.max_file_tokens = max_file_tokens
@@ -34,6 +36,8 @@ class CodeAnalyzer:
             from app.services.framework_prompts import get_framework_block
             get_framework_block(frameworks)  # raises ValueError on unknown id
         self.frameworks = frameworks or []
+        self.cross_file_context = cross_file_context
+        self.cross_file_context_max_tokens = cross_file_context_max_tokens
 
     def _check_cancel(self):
         if self.cancel_event and self.cancel_event.is_set():
@@ -189,8 +193,21 @@ class CodeAnalyzer:
                 continue
 
             static_issues = self._run_static_scanners(abs_path, str(rel_path), language, content)
+            llm_context = ""
+            if not static_only and self.llm and self.cross_file_context:
+                from app.services.context import build_context_for_file
+                llm_context = build_context_for_file(
+                    repo_path_obj,
+                    abs_path,
+                    language,
+                    content,
+                    max_tokens=self.cross_file_context_max_tokens,
+                )
             llm_result = (
-                self.llm.analyze_file(str(rel_path), language, content, frameworks=self.frameworks)
+                self.llm.analyze_file(
+                    str(rel_path), language, content,
+                    frameworks=self.frameworks, context=llm_context,
+                )
                 if not static_only and self.llm
                 else {}
             )

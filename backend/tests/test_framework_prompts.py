@@ -10,7 +10,17 @@ Covers:
 """
 import pytest
 
-from app.services import framework_prompts
+from app.services import framework_prompts, llm_cache
+
+
+@pytest.fixture(autouse=True)
+def _reset_llm_cache():
+    """Each test starts with an empty cache — prevents cross-test pollution
+    when the LLMClient stub shares a process-wide cache dict."""
+    llm_cache.clear()
+    llm_cache.reset_stats()
+    yield
+    llm_cache.clear()
 
 # ---------------------------------------------------------------------------
 # Registry surface
