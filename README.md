@@ -154,6 +154,21 @@ clarix rules --scanner owasp
 
 Subcommands: `scan`, `rules`, `version`. Output formats: `text`, `json`, `sarif`. Exit codes: `0` clean, `1` findings at/above threshold, `2` usage error, `3` scan error.
 
+### Pre-commit hook
+
+Add to your project's `.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: https://github.com/aengelicc/clarix
+    rev: v1.0.0
+    hooks:
+      - id: clarix-scan
+        args: ['--severity-threshold', 'low', '--fail-on', 'high']
+```
+
+Requires the `clarix` CLI on PATH (or override `language` / `additional_dependencies`).
+
 
 
 - **Enable / disable** individual rules or bulk-toggle all on/off.

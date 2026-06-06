@@ -1,0 +1,18 @@
+- id: clarix-scan
+  name: Clarix Security Scan
+  description: >
+    Run Clarix static analysis (security, HIPAA, PCI-DSS, GDPR, SOC 2, OWASP,
+    CIS v8) on the repository. Fails the commit when findings meet the
+    --fail-on threshold.
+  entry: clarix scan
+  language: python
+  language_version: python3
+  args: ['--format', 'text', '--severity-threshold', 'low', '--fail-on', 'high']
+  pass_filenames: false
+  require_serial: false
+  always_run: true
+  stages: [pre-commit, manual]
+  additional_dependencies: []
+  # Note: pre-commit invokes the hook from the repo root, so the entry scans '.'
+  # by default. Override `args` in your .pre-commit-config.yaml to change the
+  # severity thresholds, output format, etc.
