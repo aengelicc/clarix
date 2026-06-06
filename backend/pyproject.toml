@@ -6,7 +6,6 @@ build-backend = "setuptools.build_meta"
 name = "clarix"
 version = "1.0.0"
 description = "Pre-deployment security analysis for your codebase — static regex scanning + optional LLM deep review."
-readme = "../README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Clarix" }]
