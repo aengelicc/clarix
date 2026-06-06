@@ -53,13 +53,10 @@ jobs:
           pip install ruff mypy
 
       - name: ruff check
-        # Soft-fail for now: the codebase still has mypy-fixing in progress.
-        # Once mypy is at 0 errors, remove the || true and make this blocking.
-        run: ruff check app/ clarix_cli/ tests/ || true
+        run: ruff check app/ clarix_cli/ tests/
 
       - name: mypy
-        # Same soft-fail rationale. Goal: get this to 0 errors in a follow-up.
-        run: mypy app/ clarix_cli/ || true
+        run: mypy app/ clarix_cli/
 
   frontend:
     name: Frontend (build)
