@@ -19,8 +19,37 @@ jobs:
       #   - uses: aengelicc/clarix-scan@v1
       # For in-repo dev / testing, point at the local composite action:
       - uses: ./.github/actions/clarix-scan
+        id: scan
         with:
           path: .
           severity-threshold: low
           fail-on: high
           install-from: local  # remove when consuming from a different repo
+
+      # Upload the SARIF to GitHub Code Scanning. Downstream of the action;
+      # uses the action's output to find the file.
+      - name: Upload SARIF to GitHub Code Scanning
+        if: hashFiles('${{ steps.scan.outputs.sarif }}') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif }}
+          category: clarix
+        continue-on-error: true  # don't fail the workflow if Code Scanning rejects the upload
+
+      # Sticky PR comment summarising the run.
+      - name: Post PR comment
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: clarix
+          message: |
+            ## Clarix Security Scan
+
+            **Findings:** ${{ steps.scan.outputs.finding-count }}
+            **Threshold:** low (fail-on: high)
+
+            <details>
+            <summary>SARIF uploaded to GitHub Code Scanning under <code>clarix</code></summary>
+
+            Open the **Security → Code scanning** tab to view annotated diffs and rule details.
+            </details>
