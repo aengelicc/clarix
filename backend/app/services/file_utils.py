@@ -54,10 +54,10 @@ def detect_language(file_path: Path) -> str:
 
 def get_repo_files(repo_path: str, max_file_size_kb: int = 500, max_files: int = 100,
                    include_hidden: bool = False) -> list[tuple[Path, str, int]]:
-    repo_path = Path(repo_path).resolve()
-    gitignore = load_gitignore_specs(str(repo_path))
+    root_path = Path(repo_path).resolve()
+    gitignore = load_gitignore_specs(str(root_path))
     files = []
-    for root, dirs, filenames in os.walk(repo_path):
+    for root, dirs, filenames in os.walk(root_path):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.endswith(".egg-info")
                    and (include_hidden or not d.startswith("."))]
         for filename in filenames:

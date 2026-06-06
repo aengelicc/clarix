@@ -98,7 +98,6 @@ warn_unreachable = true
 # Don't error on each untyped function body — too noisy for now.
 check_untyped_defs = false
 # Allow returning Any from functions that lack a precise annotation.
-disallow_any_return = false
 disallow_any_generics = false
 exclude = ["build/", "tests/fixtures/"]
 
