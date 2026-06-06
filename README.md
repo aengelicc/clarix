@@ -27,7 +27,7 @@
 - **GitHub + local** — analyze any public or private GitHub repo, or point it at a local folder.
 - **Rules manager** — enable, disable, edit, or add custom rules. Bulk toggle all on/off to run only the checks you want.
 - **Live streaming** — results stream in real time over SSE as each file is scanned.
-- **Export** — download the full report as Markdown or JSON.
+- **Export** — download the full report as Markdown, JSON, or **SARIF 2.1.0** (compatible with GitHub Code Scanning).
 - **Docker ready** — one `docker-compose up` for production.
 
 ---

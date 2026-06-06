@@ -140,6 +140,7 @@ def scan_pci(file_path: Path, relative_path: str, language: str, content: str) -
                     compliance_ref=rule.compliance_ref,
                     code_snippet=stripped[:150],
                     source="pci_scanner",
+                    rule_id=rule.id,
                 ))
     return issues
 

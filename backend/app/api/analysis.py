@@ -3,8 +3,8 @@ import asyncio
 import json
 import threading
 import uuid
-from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi.responses import StreamingResponse, JSONResponse
 from typing import Optional
 
 # Per-job cancel events — keyed by job_id UUID. Never a global singleton.
@@ -21,31 +21,17 @@ from app.services.ingestion import RepoIngestor
 from app.services.llm import LLMClient
 from app.services.analyzer import CodeAnalyzer
 from app.services.file_utils import get_repo_files
+from app.services.sarif import build_sarif
 
 router = APIRouter()
 
 
-@router.post("/analyze/cancel")
-async def cancel_analysis(request: Request):
-    try:
-        body = await request.json()
-        job_id = body.get("job_id") if isinstance(body, dict) else None
-    except Exception:
-        job_id = None
-    with _cancel_events_lock:
-        if job_id:
-            event = _cancel_events.get(job_id)
-            if event:
-                event.set()
-        else:
-            for event in _cancel_events.values():
-                event.set()
-    return {"status": "cancelled"}
+def _run_analysis(request: AnalyzeRequest, cancel_event: Optional[threading.Event] = None,
+                  on_progress=None) -> ProjectReport:
+    """Run the full analysis pipeline: ingest, scan, optional LLM. Returns a ProjectReport.
 
-
-@router.post("/analyze", response_model=AnalyzeResponse)
-def analyze_repo(request: AnalyzeRequest):
-    """Analyze a GitHub repository or local folder."""
+    Raises HTTPException on error and ensures the ingestor is cleaned up.
+    """
     ingestor = None
     try:
         pat = request.github_pat or settings.github_pat
@@ -73,19 +59,97 @@ def analyze_repo(request: AnalyzeRequest):
         files = get_repo_files(repo_path, max_file_size_kb=max_size, max_files=max_files)
 
         if not files:
-            ingestor.cleanup()
-            return AnalyzeResponse(success=False, error="No analyzable code files found in the repository.")
+            raise HTTPException(status_code=400, detail="No analyzable code files found in the repository.")
 
-        analyzer = CodeAnalyzer(llm_client, max_file_tokens=settings.max_file_tokens)
-        report = analyzer.analyze_repo(repo_path, files, repo_name, source_type, mode=mode)
-
-        ingestor.cleanup()
-        return AnalyzeResponse(success=True, report=report)
-
-    except Exception as e:
+        analyzer = CodeAnalyzer(llm_client, max_file_tokens=settings.max_file_tokens, cancel_event=cancel_event)
+        report = analyzer.analyze_repo(
+            repo_path, files, repo_name, source_type,
+            on_progress=on_progress, mode=mode,
+        )
+        return report
+    finally:
         if ingestor:
-            ingestor.cleanup()
+            try:
+                ingestor.cleanup()
+            except Exception:
+                pass
+
+
+@router.post("/analyze/cancel")
+async def cancel_analysis(request: Request):
+    try:
+        body = await request.json()
+        job_id = body.get("job_id") if isinstance(body, dict) else None
+    except Exception:
+        job_id = None
+    with _cancel_events_lock:
+        if job_id:
+            event = _cancel_events.get(job_id)
+            if event:
+                event.set()
+        else:
+            for event in _cancel_events.values():
+                event.set()
+    return {"status": "cancelled"}
+
+
+@router.post("/analyze", response_model=AnalyzeResponse)
+def analyze_repo(request: AnalyzeRequest):
+    """Analyze a GitHub repository or local folder."""
+    try:
+        report = _run_analysis(request)
+        return AnalyzeResponse(success=True, report=report)
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/analyze/sarif")
+def analyze_repo_sarif(request: AnalyzeRequest):
+    """Analyze a repository and return SARIF 2.1.0 JSON.
+
+    Returns 200 with a SARIF document on success. On analysis error, returns
+    400/500 with a JSON `{"error": "..."}` body (SARIF consumers ignore bodies
+    on 4xx, so failure shows up as a missing upload, not a broken report).
+    """
+    try:
+        report = _run_analysis(request)
+    except HTTPException as exc:
+        return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+    sarif = build_sarif(report)
+    body = json.dumps(sarif, ensure_ascii=False)
+    filename = f"clarix-{report.repo_name or 'report'}.sarif"
+    return Response(
+        content=body,
+        media_type="application/sarif+json",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Type": "application/sarif+json; charset=utf-8",
+        },
+    )
+
+
+@router.post("/report/sarif")
+def report_to_sarif(report: ProjectReport):
+    """Convert a ProjectReport (POSTed by the client) into SARIF 2.1.0 JSON.
+
+    Useful for re-exporting an existing report without re-running the analysis.
+    """
+    sarif = build_sarif(report)
+    body = json.dumps(sarif, ensure_ascii=False)
+    filename = f"clarix-{report.repo_name or 'report'}.sarif"
+    return Response(
+        content=body,
+        media_type="application/sarif+json",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Type": "application/sarif+json; charset=utf-8",
+        },
+    )
 
 
 @router.post("/analyze/stream")

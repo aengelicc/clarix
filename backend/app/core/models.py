@@ -33,6 +33,7 @@ class Issue(BaseModel):
     recommendation: str
     code_snippet: Optional[str] = None
     source: str = "llm"
+    rule_id: Optional[str] = None  # set by static scanners from rules.json; None for LLM-detected issues
     hipaa_reference: Optional[str] = None
     compliance_ref: Optional[str] = None
 

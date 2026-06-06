@@ -282,6 +282,7 @@ def scan_owasp(file_path: Path, relative_path: str, language: str, content: str)
     for rule in rules_store.get_active_rules(scanner="owasp"):
         # Multi-line pattern: match against the full file content.
         if "\\n" in rule.pattern or "\n" in rule.pattern:
+            # Multi-line pattern: match against the full file content.
             m = re.search(rule.pattern, content, re.MULTILINE | re.DOTALL)
             if not m:
                 continue
@@ -295,6 +296,7 @@ def scan_owasp(file_path: Path, relative_path: str, language: str, content: str)
                 recommendation=rule.recommendation,
                 compliance_ref=rule.compliance_ref,
                 source="owasp_scanner",
+                rule_id=rule.id,
             ))
             continue
 
@@ -313,6 +315,7 @@ def scan_owasp(file_path: Path, relative_path: str, language: str, content: str)
                     compliance_ref=rule.compliance_ref,
                     code_snippet=stripped[:150],
                     source="owasp_scanner",
+                    rule_id=rule.id,
                 ))
     return issues
 

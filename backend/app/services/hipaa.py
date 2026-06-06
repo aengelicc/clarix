@@ -197,6 +197,7 @@ def scan_hipaa(file_path: Path, relative_path: str, language: str, content: str)
                     compliance_ref=rule.compliance_ref,
                     code_snippet=stripped[:150],
                     source="hipaa_scanner",
+                    rule_id=rule.id,
                 ))
     return issues
 

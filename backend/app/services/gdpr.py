@@ -130,6 +130,7 @@ def scan_gdpr(file_path: Path, relative_path: str, language: str, content: str) 
                     recommendation=rule.recommendation,
                     compliance_ref=rule.compliance_ref,
                     source="gdpr_scanner",
+                    rule_id=rule.id,
                 ))
         else:
             for i, line in enumerate(lines, 1):
@@ -147,6 +148,7 @@ def scan_gdpr(file_path: Path, relative_path: str, language: str, content: str) 
                         compliance_ref=rule.compliance_ref,
                         code_snippet=stripped[:150],
                         source="gdpr_scanner",
+                        rule_id=rule.id,
                     ))
     return issues
 

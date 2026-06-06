@@ -89,6 +89,7 @@ def scan_file(file_path: Path, relative_path: str, language: str, content: str) 
                     recommendation=rule.recommendation,
                     code_snippet=line.strip()[:150],
                     source="security_scanner",
+                    rule_id=rule.id,
                 ))
 
     for rule in rules_store.get_active_rules(scanner="security", rule_type="dangerous"):
@@ -105,6 +106,7 @@ def scan_file(file_path: Path, relative_path: str, language: str, content: str) 
                     recommendation=rule.recommendation,
                     code_snippet=line.strip()[:150],
                     source="security_scanner",
+                    rule_id=rule.id,
                 ))
 
     return issues

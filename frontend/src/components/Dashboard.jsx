@@ -56,6 +56,31 @@ export default function Dashboard({ report, onReset }) {
     downloadFile(json, `codegate_${report.repo_name.replace('/', '_')}.json`, 'application/json');
   };
 
+  const exportSARIF = async () => {
+    try {
+      const resp = await fetch('/api/report/sarif', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(report),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        alert(`SARIF export failed: ${err.error || resp.statusText}`);
+        return;
+      }
+      const blob = await resp.blob();
+      const filename = `clarix_${report.repo_name.replace(/[^\w.-]+/g, '_')}.sarif`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert(`SARIF export failed: ${e.message}`);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Bar */}
@@ -72,6 +97,10 @@ export default function Dashboard({ report, onReset }) {
           <button onClick={exportJSON} className="btn-secondary text-sm">
             <Download size={16} />
             JSON
+          </button>
+          <button onClick={exportSARIF} className="btn-secondary text-sm" title="SARIF 2.1.0 — for GitHub Code Scanning and other security tools">
+            <Download size={16} />
+            SARIF
           </button>
         </div>
       </div>

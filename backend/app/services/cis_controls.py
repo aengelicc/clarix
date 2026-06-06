@@ -263,6 +263,7 @@ def scan_cis(file_path: Path, relative_path: str, language: str, content: str) -
                 recommendation=rule.recommendation,
                 compliance_ref=rule.compliance_ref,
                 source="cis_scanner",
+                rule_id=rule.id,
             ))
             continue
 
@@ -281,6 +282,7 @@ def scan_cis(file_path: Path, relative_path: str, language: str, content: str) -
                     compliance_ref=rule.compliance_ref,
                     code_snippet=stripped[:150],
                     source="cis_scanner",
+                    rule_id=rule.id,
                 ))
     return issues
 
