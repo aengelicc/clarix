@@ -79,9 +79,12 @@ runs:
 
     - name: Run Clarix scan
       id: scan
+      # continue-on-error: a non-zero exit means "findings at/above fail-on", not
+      # a broken action. The exit code is surfaced via steps.scan.outputs.exit-code
+      # so consumers can gate their own workflow on it. SARIF is uploaded either way.
+      continue-on-error: true
       shell: bash
       run: |
-        set +e
         mkdir -p "$RUNNER_TEMP/clarix-out"
         cd "$GITHUB_WORKSPACE/${{ inputs.path }}"
 
@@ -94,6 +97,7 @@ runs:
         fi
         ARGS+=(--output "$RUNNER_TEMP/clarix-out/results.sarif")
 
+        set +e
         clarix "${ARGS[@]}"
         EXIT_CODE=$?
         set -e
@@ -104,9 +108,6 @@ runs:
         echo "finding-count=$FINDING_COUNT" >> "$GITHUB_OUTPUT"
         echo "exit-code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
         echo "::notice title=Clarix::$FINDING_COUNT finding(s) at threshold=${{ inputs.severity-threshold }}"
-
-        # Always upload SARIF (even when there are no findings — Code Scanning likes a clean report).
-        exit 0
 
     - name: Upload SARIF to GitHub Code Scanning
       if: hashFiles('${{ steps.scan.outputs.sarif }}') != ''
