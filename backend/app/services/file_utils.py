@@ -52,19 +52,21 @@ def detect_language(file_path: Path) -> str:
     return LANGUAGE_MAP.get(file_path.suffix.lower(), "Unknown")
 
 
-def get_repo_files(repo_path: str, max_file_size_kb: int = 500, max_files: int = 100) -> List[Tuple[Path, str, int]]:
+def get_repo_files(repo_path: str, max_file_size_kb: int = 500, max_files: int = 100,
+                   include_hidden: bool = False) -> List[Tuple[Path, str, int]]:
     repo_path = Path(repo_path).resolve()
     gitignore = load_gitignore_specs(str(repo_path))
     files = []
     for root, dirs, filenames in os.walk(repo_path):
-        dirs[:] = [d for d in dirs if not d.startswith(".") and d not in SKIP_DIRS and not d.endswith(".egg-info")]
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.endswith(".egg-info")
+                   and (include_hidden or not d.startswith("."))]
         for filename in filenames:
             file_path = Path(root) / filename
             rel_path = file_path.relative_to(repo_path)
             rel_str = str(rel_path).replace("\\", "/")
             if gitignore and gitignore.match_file(rel_str):
                 continue
-            if filename.startswith("."):
+            if not include_hidden and filename.startswith("."):
                 continue
             if not is_code_file(file_path):
                 continue

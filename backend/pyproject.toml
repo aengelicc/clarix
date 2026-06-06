@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clarix"
+version = "1.0.0"
+description = "Pre-deployment security analysis for your codebase — static regex scanning + optional LLM deep review."
+readme = "../README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Clarix" }]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+]
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "python-dotenv>=1.0.0",
+    "openai>=1.12.0",
+    "anthropic>=0.18.0",
+    "GitPython>=3.1.40",
+    "PyGithub>=2.1.1",
+    "pathspec>=0.12.0",
+    "PyYAML>=6.0.1",
+    "python-multipart>=0.0.6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0"]
+
+[project.scripts]
+clarix = "clarix_cli.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*", "clarix_cli*"]
+
+[tool.setuptools.package-data]
+"app.data" = ["rules.json"]

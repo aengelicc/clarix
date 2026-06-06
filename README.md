@@ -28,6 +28,7 @@
 - **Rules manager** — enable, disable, edit, or add custom rules. Bulk toggle all on/off to run only the checks you want.
 - **Live streaming** — results stream in real time over SSE as each file is scanned.
 - **Export** — download the full report as Markdown, JSON, or **SARIF 2.1.0** (compatible with GitHub Code Scanning).
+- **CLI** — `clarix scan <path> --format sarif --severity-threshold high` for CI, pre-commit, and scripted workflows. Exit codes: 0=clean, 1=findings, 2=usage, 3=scan error.
 - **Docker ready** — one `docker-compose up` for production.
 
 ---
@@ -136,6 +137,24 @@ Enable **Static analysis only** in the settings panel to run purely regex-based 
 ## Rules
 
 Clarix ships with 146 built-in rules. Open **Manage security rules** from the home screen to:
+
+### CLI
+
+```bash
+# Run from a local checkout
+pip install -e .
+clarix scan ./src --format sarif --severity-threshold high --output results.sarif
+
+# Or without installing
+python -m clarix_cli scan ./src --format text
+
+# List rules (filterable by scanner)
+clarix rules --scanner owasp
+```
+
+Subcommands: `scan`, `rules`, `version`. Output formats: `text`, `json`, `sarif`. Exit codes: `0` clean, `1` findings at/above threshold, `2` usage error, `3` scan error.
+
+
 
 - **Enable / disable** individual rules or bulk-toggle all on/off.
 - **Edit** any rule's pattern, severity, or description.
