@@ -1,0 +1,22 @@
+name: Clarix
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  clarix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # In a real consumer repo, this would be:
+      #   - uses: aengelicc/clarix-scan@v1
+      # For in-repo dev / testing, point at the local composite action:
+      - uses: ./.github/actions/clarix-scan
+        with:
+          path: .
+          severity-threshold: low
+          fail-on: high
+          install-from: local  # remove when consuming from a different repo

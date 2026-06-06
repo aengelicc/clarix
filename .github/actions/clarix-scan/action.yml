@@ -1,0 +1,133 @@
+name: 'Clarix Security Scan'
+description: 'Run Clarix static analysis on a repository and upload the results to GitHub Code Scanning.'
+branding:
+  icon: 'shield'
+  color: 'red'
+
+inputs:
+  path:
+    description: 'Path (relative to the repo root) to scan.'
+    required: false
+    default: '.'
+  severity-threshold:
+    description: 'Minimum severity to include in the SARIF output.'
+    required: false
+    default: 'low'
+  fail-on:
+    description: 'Severity at which the action exits non-zero. Defaults to severity-threshold.'
+    required: false
+    default: ''
+  clarix-ref:
+    description: 'Git ref (branch, tag, or SHA) of the aengelicc/clarix repo to install the CLI from.'
+    required: false
+    default: 'main'
+  install-from:
+    description: "How to install the Clarix CLI: 'remote' (clone aengelicc/clarix at clarix-ref) or 'local' (use the checkout's own backend/ directory — useful when developing Clarix in this same repo)."
+    required: false
+    default: 'remote'
+  sarif-category:
+    description: 'Category label for the GitHub Code Scanning upload.'
+    required: false
+    default: 'clarix'
+  comment-on-pr:
+    description: 'Post (or update) a sticky PR comment summarising top findings.'
+    required: false
+    default: 'true'
+  max-files:
+    description: 'Override Clarix MAX_FILES (number of files to scan).'
+    required: false
+    default: ''
+  python-version:
+    description: 'Python version to use for the CLI.'
+    required: false
+    default: '3.11'
+
+outputs:
+  sarif-file:
+    description: 'Path to the generated SARIF file.'
+    value: ${{ steps.scan.outputs.sarif }}
+  finding-count:
+    description: 'Number of findings in the SARIF report.'
+    value: ${{ steps.scan.outputs.finding-count }}
+  exit-code:
+    description: 'Exit code from the Clarix CLI (0 = clean, 1 = findings above fail-on).'
+    value: ${{ steps.scan.outputs.exit-code }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python ${{ inputs.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install Clarix CLI (from remote)
+      if: inputs.install-from == 'remote'
+      shell: bash
+      run: |
+        git clone --depth 1 --branch "${{ inputs.clarix-ref }}" \
+          https://github.com/aengelicc/clarix.git "$RUNNER_TEMP/clarix"
+        python -m pip install --upgrade pip
+        python -m pip install "$RUNNER_TEMP/clarix/backend"
+
+    - name: Install Clarix CLI (from local backend/)
+      if: inputs.install-from == 'local'
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install ./backend
+
+    - name: Run Clarix scan
+      id: scan
+      shell: bash
+      run: |
+        set +e
+        mkdir -p "$RUNNER_TEMP/clarix-out"
+        cd "$GITHUB_WORKSPACE/${{ inputs.path }}"
+
+        ARGS=(scan . --format sarif --severity-threshold "${{ inputs.severity-threshold }}")
+        if [ -n "${{ inputs.fail-on }}" ]; then
+          ARGS+=(--fail-on "${{ inputs.fail-on }}")
+        fi
+        if [ -n "${{ inputs.max-files }}" ]; then
+          ARGS+=(--max-files "${{ inputs.max-files }}")
+        fi
+        ARGS+=(--output "$RUNNER_TEMP/clarix-out/results.sarif")
+
+        clarix "${ARGS[@]}"
+        EXIT_CODE=$?
+        set -e
+
+        FINDING_COUNT=$(python "${{ github.action_path }}/find_count.py" "$RUNNER_TEMP/clarix-out/results.sarif")
+
+        echo "sarif=$RUNNER_TEMP/clarix-out/results.sarif" >> "$GITHUB_OUTPUT"
+        echo "finding-count=$FINDING_COUNT" >> "$GITHUB_OUTPUT"
+        echo "exit-code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+        echo "::notice title=Clarix::$FINDING_COUNT finding(s) at threshold=${{ inputs.severity-threshold }}"
+
+        # Always upload SARIF (even when there are no findings — Code Scanning likes a clean report).
+        exit 0
+
+    - name: Upload SARIF to GitHub Code Scanning
+      if: hashFiles('${{ steps.scan.outputs.sarif }}') != ''
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ steps.scan.outputs.sarif }}
+        category: ${{ inputs.sarif-category }}
+
+    - name: Post PR comment
+      if: inputs.comment-on-pr == 'true' && github.event_name == 'pull_request'
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        header: clarix
+        message: |
+          ## Clarix Security Scan
+
+          **Findings:** ${{ steps.scan.outputs.finding-count }}
+          **Threshold:** ${{ inputs.severity-threshold }} (fail-on: ${{ inputs.fail-on || inputs.severity-threshold }})
+
+          <details>
+          <summary>SARIF uploaded to GitHub Code Scanning under <code>${{ inputs.sarif-category }}</code></summary>
+
+          Open the **Security → Code scanning** tab to view annotated diffs and rule details.
+          </details>
