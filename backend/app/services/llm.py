@@ -249,6 +249,14 @@ Focus on real, actionable issues. Do not pad with minor style nits."""
         return parsed
 
     def _call_llm(self, system_prompt: str, user_prompt: str, max_tokens: int = 4096) -> str:
+        # Lazy import: keeps `from app.services.llm import LLMClient` cheap and
+        # lets the cache module be exercised independently in tests.
+        from app.services import llm_cache
+
+        cached = llm_cache.get(self.provider, self.model, system_prompt, user_prompt, max_tokens)
+        if cached is not None:
+            return cached
+
         if self.provider == "anthropic":
             message = self.client.messages.create(
                 model=self.model,
@@ -256,15 +264,18 @@ Focus on real, actionable issues. Do not pad with minor style nits."""
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}]
             )
-            return message.content[0].text
+            response_text = message.content[0].text
         else:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
+                    {"role": "user", "content": user_prompt}]
+                ,
                 temperature=0.2,
                 max_tokens=max_tokens
             )
-            return response.choices[0].message.content
+            response_text = response.choices[0].message.content
+
+        llm_cache.set(self.provider, self.model, system_prompt, user_prompt, max_tokens, response_text)
+        return response_text

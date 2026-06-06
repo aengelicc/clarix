@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     max_file_size_kb: int = 500
     max_file_tokens: int = 8000
 
+    # LLM response cache (in-process, lost on restart; see app/services/llm_cache.py)
+    llm_cache_enabled: bool = True
+    llm_cache_ttl_seconds: int = 7 * 24 * 3600  # one week
+    llm_cache_max_entries: int = 1024
+
     class Config:
         env_file = str(_HERE.parent.parent / ".env")
         env_file_encoding = "utf-8"
