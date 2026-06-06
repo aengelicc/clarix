@@ -47,15 +47,22 @@ jobs:
 
 ## Exit codes
 
-The action surfaces Clarix's exit code on the `exit-code` output but does not
-fail the job by itself — control gating via `fail-on` should be done in the
-caller workflow if needed. Example:
+The action step always succeeds — the `clarix` CLI's non-zero exit (which
+means "findings at/above the fail-on threshold") does not fail the action.
+This is so SARIF can always be uploaded to GitHub Code Scanning, and so the
+caller controls gating in their own workflow.
+
+To fail the caller workflow on findings, use the `exit-code` output:
 
 ```yaml
 - uses: aengelicc/clarix-scan@v1
   id: clarix
   with: { fail-on: high }
-- run: echo "Clarix found ${{ steps.clarix.outputs.finding-count }} issue(s)"
+
+- if: steps.clarix.outputs.exit-code != '0'
+  run: |
+    echo "::error::Clarix found ${{ steps.clarix.outputs.finding-count }} issue(s)"
+    exit 1
 ```
 
 ## Notes
