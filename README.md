@@ -22,7 +22,7 @@
 
 ## Features
 
-- **Static analysis** — 77 built-in regex rules across Security, HIPAA, PCI-DSS, GDPR, and SOC 2 frameworks. No API key required.
+- **Static analysis** — 146 built-in regex rules across Security, HIPAA, PCI-DSS, GDPR, SOC 2, OWASP Top 10 (2021), and CIS Critical Security Controls v8 frameworks. No API key required.
 - **LLM deep review** — optional AI-powered code analysis via Anthropic Claude or OpenAI GPT-4o for richer findings.
 - **GitHub + local** — analyze any public or private GitHub repo, or point it at a local folder.
 - **Rules manager** — enable, disable, edit, or add custom rules. Bulk toggle all on/off to run only the checks you want.
@@ -125,7 +125,7 @@ All backend configuration lives in `backend/.env`:
 2. *(Optional)* Open **Analysis Settings** to choose your LLM provider or toggle **Static analysis only** to skip LLM calls entirely.
 3. Click **Start Analysis**.
 
-Results stream in across five tabs: **Overview**, **Issues**, **Files**, **Compliance**, and **AI Insights**.
+Results stream in across five tabs: **Overview**, **Issues**, **Files**, **Compliance**, and **AI Insights**. The Compliance tab includes separate views for HIPAA, PCI-DSS, GDPR, SOC 2, OWASP Top 10, and CIS Controls v8.
 
 ### Static-only mode
 
@@ -135,7 +135,7 @@ Enable **Static analysis only** in the settings panel to run purely regex-based 
 
 ## Rules
 
-Clarix ships with 77 built-in rules. Open **Manage security rules** from the home screen to:
+Clarix ships with 146 built-in rules. Open **Manage security rules** from the home screen to:
 
 - **Enable / disable** individual rules or bulk-toggle all on/off.
 - **Edit** any rule's pattern, severity, or description.

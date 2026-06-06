@@ -32,6 +32,8 @@ def _seed() -> None:
     from app.services.pci_dss import PCI_PATTERNS
     from app.services.gdpr import GDPR_PATTERNS
     from app.services.soc2 import SOC2_PATTERNS
+    from app.services.owasp_top10 import OWASP_PATTERNS
+    from app.services.cis_controls import CIS_PATTERNS
 
     rules: List[SecurityRule] = []
 
@@ -116,6 +118,34 @@ def _seed() -> None:
             recommendation=recommendation,
             language="*",
             scanner="soc2",
+            rule_type="compliance",
+            compliance_ref=ref,
+        ))
+
+    for i, (name, pattern, severity, ref, recommendation) in enumerate(OWASP_PATTERNS):
+        rules.append(SecurityRule(
+            id=f"owasp-{i:03d}",
+            name=name,
+            pattern=pattern,
+            severity=severity,
+            description=f"{name} — {ref}.",
+            recommendation=recommendation,
+            language="*",
+            scanner="owasp",
+            rule_type="compliance",
+            compliance_ref=ref,
+        ))
+
+    for i, (name, pattern, severity, ref, recommendation) in enumerate(CIS_PATTERNS):
+        rules.append(SecurityRule(
+            id=f"cis-{i:03d}",
+            name=name,
+            pattern=pattern,
+            severity=severity,
+            description=f"{name} — {ref}.",
+            recommendation=recommendation,
+            language="*",
+            scanner="cis",
             rule_type="compliance",
             compliance_ref=ref,
         ))

@@ -20,6 +20,8 @@ const FRAMEWORKS = [
   { key: 'pci', label: 'PCI-DSS v4.0', color: 'blue', disclaimer: 'This assessment identifies technical indicators of PCI-DSS compliance gaps. A formal QSA assessment is required for official PCI-DSS certification.' },
   { key: 'gdpr', label: 'GDPR', color: 'purple', disclaimer: 'This assessment flags common GDPR technical implementation issues. Consult a DPO or legal counsel for full GDPR compliance review.' },
   { key: 'soc2', label: 'SOC 2', color: 'indigo', disclaimer: 'This assessment identifies technical gaps against SOC 2 Trust Service Criteria. A formal SOC 2 audit requires a licensed CPA firm.' },
+  { key: 'owasp', label: 'OWASP Top 10', color: 'rose', disclaimer: 'This assessment flags the code-scannable subset of OWASP Top 10 (2021) risks. It is not a substitute for a full security review or penetration test.' },
+  { key: 'cis', label: 'CIS v8', color: 'amber', disclaimer: 'This assessment flags the code-scannable subset of CIS Critical Security Controls v8 with Implementation Group (IG) tags. It is not a substitute for the full IG assessment process.' },
 ];
 
 const COLOR_MAP = {
@@ -27,6 +29,8 @@ const COLOR_MAP = {
   blue:   { tab: 'border-blue-500 text-blue-700',   inactive: 'text-slate-500 hover:text-blue-600',   badge: 'bg-blue-100 text-blue-700',   disc: 'bg-blue-50 border-blue-200 text-blue-700' },
   purple: { tab: 'border-purple-500 text-purple-700', inactive: 'text-slate-500 hover:text-purple-600', badge: 'bg-purple-100 text-purple-700', disc: 'bg-purple-50 border-purple-200 text-purple-700' },
   indigo: { tab: 'border-indigo-500 text-indigo-700', inactive: 'text-slate-500 hover:text-indigo-600', badge: 'bg-indigo-100 text-indigo-700', disc: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
+  rose:   { tab: 'border-rose-500 text-rose-700',   inactive: 'text-slate-500 hover:text-rose-600',   badge: 'bg-rose-100 text-rose-700',   disc: 'bg-rose-50 border-rose-200 text-rose-700' },
+  amber:  { tab: 'border-amber-500 text-amber-700', inactive: 'text-slate-500 hover:text-amber-600',  badge: 'bg-amber-100 text-amber-700',  disc: 'bg-amber-50 border-amber-200 text-amber-700' },
 };
 
 function ChecklistPanel({ checklist, framework }) {
@@ -121,6 +125,8 @@ export default function ComplianceOverview({ report }) {
     pci: report?.pci_checklist,
     gdpr: report?.gdpr_checklist,
     soc2: report?.soc2_checklist,
+    owasp: report?.owasp_checklist,
+    cis: report?.cis_checklist,
   };
 
   const summaryBadge = (key) => {

@@ -86,6 +86,8 @@ class ProjectReport(BaseModel):
     pci_checklist: List[ComplianceChecklistItem] = Field(default_factory=list)
     gdpr_checklist: List[ComplianceChecklistItem] = Field(default_factory=list)
     soc2_checklist: List[ComplianceChecklistItem] = Field(default_factory=list)
+    owasp_checklist: List[ComplianceChecklistItem] = Field(default_factory=list)
+    cis_checklist: List[ComplianceChecklistItem] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
     generated_at: str = ""
 

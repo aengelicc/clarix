@@ -11,6 +11,8 @@ from app.services.hipaa import scan_hipaa, build_hipaa_checklist
 from app.services.pci_dss import scan_pci, build_pci_checklist
 from app.services.gdpr import scan_gdpr, build_gdpr_checklist
 from app.services.soc2 import scan_soc2, build_soc2_checklist
+from app.services.owasp_top10 import scan_owasp, build_owasp_checklist
+from app.services.cis_controls import scan_cis, build_cis_checklist
 
 # Leave ~15k for system prompt and 16k for output; rest is code content
 _BUNDLE_TOKEN_BUDGET = 150_000
@@ -34,6 +36,8 @@ class CodeAnalyzer:
             + scan_pci(abs_path, rel_path_str, language, content)
             + scan_gdpr(abs_path, rel_path_str, language, content)
             + scan_soc2(abs_path, rel_path_str, language, content)
+            + scan_owasp(abs_path, rel_path_str, language, content)
+            + scan_cis(abs_path, rel_path_str, language, content)
         )
 
     def analyze_repo(
@@ -80,6 +84,8 @@ class CodeAnalyzer:
         pci_checklist = build_pci_checklist(all_issues)
         gdpr_checklist = build_gdpr_checklist(all_issues)
         soc2_checklist = build_soc2_checklist(all_issues)
+        owasp_checklist = build_owasp_checklist(all_issues)
+        cis_checklist = build_cis_checklist(all_issues)
 
         proj_issues = []
         for pi in synthesis.get("project_level_issues", []):
@@ -126,6 +132,8 @@ class CodeAnalyzer:
             pci_checklist=pci_checklist,
             gdpr_checklist=gdpr_checklist,
             soc2_checklist=soc2_checklist,
+            owasp_checklist=owasp_checklist,
+            cis_checklist=cis_checklist,
             metadata={
                 "total_files_analyzed": len([f for f in file_analyses if f.analyzed]),
                 "total_files_skipped": len([f for f in file_analyses if not f.analyzed]),
