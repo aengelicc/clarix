@@ -12,6 +12,7 @@ export default function InputForm({ onAnalyze, onCancel, loading, progress }) {
     api_key: '',
     github_pat: '',
     analysis_mode: 'per_file',
+    frameworks: [],
   });
 
   const [browsing, setBrowsing] = useState(false);
@@ -246,6 +247,55 @@ export default function InputForm({ onAnalyze, onCancel, loading, progress }) {
                     max={2000}
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* Frameworks multi-select (only when LLM is engaged) */}
+            <div className={config.analysis_mode === 'static' ? 'opacity-40 pointer-events-none select-none' : ''}>
+              <div className="flex items-baseline justify-between mb-2">
+                <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  Compliance Frameworks
+                </span>
+                <span className="text-xs text-slate-400">
+                  {config.frameworks.length === 0
+                    ? 'None — using generic prompt'
+                    : `${config.frameworks.length} selected`}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mb-2">
+                Pick one or more to focus the AI on. Each framework's requirements
+                are cited in findings. Leave empty for a generic review.
+              </p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                {[
+                  { id: 'hipaa', label: 'HIPAA', desc: 'PHI safeguards (§164.308–§164.514)' },
+                  { id: 'pci', label: 'PCI DSS v4.0', desc: 'Cardholder data (Req 1–12)' },
+                  { id: 'soc2', label: 'SOC 2', desc: 'Trust Services Criteria' },
+                  { id: 'gdpr', label: 'GDPR', desc: 'EU data protection' },
+                  { id: 'owasp', label: 'OWASP Top 10', desc: 'A01–A10 web app risks' },
+                  { id: 'cis', label: 'CIS Controls v8', desc: 'System hardening' },
+                ].map(({ id, label, desc }) => {
+                  const checked = config.frameworks.includes(id);
+                  return (
+                    <label key={id} className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          const next = checked
+                            ? config.frameworks.filter((f) => f !== id)
+                            : [...config.frameworks, id];
+                          setConfig({ ...config, frameworks: next });
+                        }}
+                        className="mt-0.5 w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div>
+                        <span className="text-xs font-semibold text-slate-700">{label}</span>
+                        <p className="text-xs text-slate-500 leading-tight">{desc}</p>
+                      </div>
+                    </label>
+                  );
+                })}
               </div>
             </div>
           </div>
