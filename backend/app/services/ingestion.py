@@ -28,7 +28,7 @@ def normalize_github_url(github_url: str) -> str:
     return github_url
 
 
-def clone_github_repo(github_url: str, pat: str = None) -> str:
+def clone_github_repo(github_url: str, pat: str | None = None) -> str:
     github_url = normalize_github_url(github_url)
     if pat:
         parsed = urlparse(github_url)
@@ -45,7 +45,7 @@ def clone_github_repo(github_url: str, pat: str = None) -> str:
         raise Exception(f"Failed to clone repository: {e}")
 
 
-def cleanup_clone(path: str):
+def cleanup_clone(path: str | None):
     if path and os.path.exists(path):
         shutil.rmtree(path, ignore_errors=True)
 
@@ -66,7 +66,14 @@ def validate_local_path(path: str) -> str:
 
 
 class RepoIngestor:
-    def __init__(self, github_pat: str = None):
+    # Class-level type annotations so mypy doesn't infer the attribute types
+    # from the first (None-typed) assignment in __init__.
+    github_pat: str | None
+    temp_clone_path: str | None
+    source_type: str | None
+    repo_name: str | None
+
+    def __init__(self, github_pat: str | None = None):
         self.github_pat = github_pat
         self.temp_clone_path = None
         self.source_type = None

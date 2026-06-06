@@ -43,6 +43,10 @@ def _run_analysis(request: AnalyzeRequest, cancel_event: threading.Event | None 
             llm_client = None
         else:
             provider = request.llm_provider or settings.llm_provider
+            # Explicit annotation: the four branches below may each yield None
+            # from settings, so the type must be `str | None` even though the
+            # `if request.api_key` branch happens to assign a `str`.
+            api_key: str | None
             if request.api_key:
                 api_key = request.api_key
             elif provider == "anthropic":

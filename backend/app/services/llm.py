@@ -8,8 +8,20 @@ from app.services.framework_prompts import get_framework_block
 
 
 class LLMClient:
-    def __init__(self, provider: str = None, api_key: str = None, model: str = None):
-        self.provider = (provider or os.getenv("LLM_PROVIDER", "openai")).lower()
+    # Union type — the SDK client objects don't share a useful base, and we
+    # need the attribute to exist before _init_client assigns the real one.
+    client: object
+
+    def __init__(self, provider: str | None = None, api_key: str | None = None, model: str | None = None):
+        # Resolve provider: explicit arg > env var > "openai" default. The
+        # nested-if keeps mypy happy without a cast (os.getenv's overload
+        # with a str default returns str, but mypy is conservative here).
+        if provider:
+            provider_value: str = provider
+        else:
+            env_value = os.getenv("LLM_PROVIDER", "openai")
+            provider_value = env_value if env_value else "openai"
+        self.provider = provider_value.lower()
         self.api_key = api_key or self._get_default_api_key()
         self.model = model or self._get_default_model()
         self.client = None
@@ -281,7 +293,7 @@ Focus on real, actionable issues. Do not pad with minor style nits."""
             return cached
 
         if self.provider == "anthropic":
-            message = self.client.messages.create(
+            message = self.client.messages.create(  # type: ignore[attr-defined]
                 model=self.model,
                 max_tokens=max_tokens,
                 system=system_prompt,
@@ -289,7 +301,7 @@ Focus on real, actionable issues. Do not pad with minor style nits."""
             )
             response_text = message.content[0].text
         else:
-            response = self.client.chat.completions.create(
+            response = self.client.chat.completions.create(  # type: ignore[attr-defined]
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
