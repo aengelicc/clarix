@@ -1,8 +1,8 @@
 """Security scanning: secrets and dangerous patterns."""
-import re
 from pathlib import Path
 from typing import List
-from app.core.models import Issue, Severity, Category
+from app.core.models import Issue, Severity
+from app.services.scanner_common import scan_rules
 
 
 SECRET_PATTERNS = [
@@ -70,46 +70,27 @@ DEPENDENCY_FILES = {
 
 
 def scan_file(file_path: Path, relative_path: str, language: str, content: str) -> List[Issue]:
-    from app.services import rules_store
-    issues = []
-    lines = content.splitlines()
-
-    for rule in rules_store.get_active_rules(scanner="security", rule_type="secret"):
-        for i, line in enumerate(lines, 1):
-            if re.search(rule.pattern, line):
-                stripped = line.strip().lower()
-                if stripped.startswith(("#", "//", "*")):
-                    continue  # skip comment lines — they're documentation, not live credentials
-                issues.append(Issue(
-                    category=Category.SECURITY,
-                    severity=rule.severity,
-                    file=relative_path,
-                    line=i,
-                    description=rule.description,
-                    recommendation=rule.recommendation,
-                    code_snippet=line.strip()[:150],
-                    source="security_scanner",
-                    rule_id=rule.id,
-                ))
-
-    for rule in rules_store.get_active_rules(scanner="security", rule_type="dangerous"):
-        if rule.language not in ("*", language):
-            continue
-        for i, line in enumerate(lines, 1):
-            if re.search(rule.pattern, line):
-                issues.append(Issue(
-                    category=Category.SECURITY,
-                    severity=rule.severity,
-                    file=relative_path,
-                    line=i,
-                    description=rule.description,
-                    recommendation=rule.recommendation,
-                    code_snippet=line.strip()[:150],
-                    source="security_scanner",
-                    rule_id=rule.id,
-                ))
-
-    return issues
+    """Scan a file for secrets and dangerous patterns. Combines two
+    rule_type passes through the shared scan_rules helper:
+      - 'secret' rules: no language filter, treat lowercased comment
+        prefixes as documentation (so "# AWS KEY" doesn't fire).
+      - 'dangerous' rules: only apply when the rule's language matches
+        the file's language (or is '*').
+    """
+    secrets = scan_rules(
+        relative_path, language, content,
+        scanner="security",
+        rule_type="secret",
+        language_check=False,
+        comment_strip_lower=True,
+    )
+    dangerous = scan_rules(
+        relative_path, language, content,
+        scanner="security",
+        rule_type="dangerous",
+        language_check=True,
+    )
+    return secrets + dangerous
 
 
 def check_dependencies(repo_path: str) -> List[Issue]:

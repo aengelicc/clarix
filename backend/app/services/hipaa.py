@@ -1,8 +1,8 @@
 """HIPAA Security Rule compliance scanning and checklist generation."""
-import re
 from pathlib import Path
 from typing import List, Dict, Any
 from app.core.models import Issue, HipaaChecklistItem, Severity, Category, SEVERITY_ORDER
+from app.services.scanner_common import scan_rules
 
 # (name, pattern, severity, hipaa_ref, recommendation)
 # All patterns use single-quote raw strings to safely contain double-quote characters.
@@ -177,29 +177,7 @@ HIPAA_CHECKLIST_TEMPLATE = [
 
 def scan_hipaa(file_path: Path, relative_path: str, language: str, content: str) -> List[Issue]:
     """Scan a file for HIPAA Security Rule violations, returning tagged Issues."""
-    from app.services import rules_store
-    issues = []
-    lines = content.splitlines()
-    for rule in rules_store.get_active_rules(scanner="hipaa"):
-        for i, line in enumerate(lines, 1):
-            stripped = line.strip()
-            if stripped.startswith(("#", "//", "*", "<!--")):
-                continue
-            if re.search(rule.pattern, line):
-                issues.append(Issue(
-                    category=Category.SECURITY,
-                    severity=rule.severity,
-                    file=relative_path,
-                    line=i,
-                    description=rule.description,
-                    recommendation=rule.recommendation,
-                    hipaa_reference=rule.compliance_ref,
-                    compliance_ref=rule.compliance_ref,
-                    code_snippet=stripped[:150],
-                    source="hipaa_scanner",
-                    rule_id=rule.id,
-                ))
-    return issues
+    return scan_rules(relative_path, language, content, scanner="hipaa")
 
 
 def build_hipaa_checklist(all_issues: List[Issue]) -> List[HipaaChecklistItem]:

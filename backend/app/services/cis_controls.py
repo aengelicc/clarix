@@ -4,11 +4,11 @@ Covers the code-scannable subset of CIS Controls v8. Implementation Group
 (IG) levels are noted in each rule's compliance_ref so the CIS view surfaces
 priorities (IG1 = basic cyber hygiene, IG2 = intermediate, IG3 = advanced).
 """
-import re
 from pathlib import Path
 from typing import List
 
 from app.core.models import Issue, ComplianceChecklistItem, Severity, Category, SEVERITY_ORDER
+from app.services.scanner_common import scan_rules
 
 
 # (name, pattern, severity, cis_ref, recommendation)
@@ -244,47 +244,7 @@ CIS_CHECKLIST_TEMPLATE = [
 
 def scan_cis(file_path: Path, relative_path: str, language: str, content: str) -> List[Issue]:
     """Scan a file for CIS Critical Security Controls v8 violations."""
-    from app.services import rules_store
-
-    issues: List[Issue] = []
-    lines = content.splitlines()
-    for rule in rules_store.get_active_rules(scanner="cis"):
-        if "\\n" in rule.pattern or "\n" in rule.pattern:
-            m = re.search(rule.pattern, content, re.MULTILINE | re.DOTALL)
-            if not m:
-                continue
-            line_num = content[: m.start()].count("\n") + 1
-            issues.append(Issue(
-                category=Category.SECURITY,
-                severity=rule.severity,
-                file=relative_path,
-                line=line_num,
-                description=rule.description,
-                recommendation=rule.recommendation,
-                compliance_ref=rule.compliance_ref,
-                source="cis_scanner",
-                rule_id=rule.id,
-            ))
-            continue
-
-        for i, line in enumerate(lines, 1):
-            stripped = line.strip()
-            if stripped.startswith(("#", "//", "*", "<!--")):
-                continue
-            if re.search(rule.pattern, line):
-                issues.append(Issue(
-                    category=Category.SECURITY,
-                    severity=rule.severity,
-                    file=relative_path,
-                    line=i,
-                    description=rule.description,
-                    recommendation=rule.recommendation,
-                    compliance_ref=rule.compliance_ref,
-                    code_snippet=stripped[:150],
-                    source="cis_scanner",
-                    rule_id=rule.id,
-                ))
-    return issues
+    return scan_rules(relative_path, language, content, scanner="cis")
 
 
 def build_cis_checklist(all_issues: List[Issue]) -> List[ComplianceChecklistItem]:
