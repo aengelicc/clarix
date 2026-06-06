@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+  security-events: write  # required to upload SARIF to GitHub Code Scanning
+
 jobs:
   clarix:
     runs-on: ubuntu-latest
