@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
 
 jobs:
   backend:
@@ -30,6 +29,37 @@ jobs:
 
       - name: Run pytest
         run: pytest -v
+
+  lint:
+    name: Lint (ruff + mypy)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff mypy
+
+      - name: ruff check
+        # Soft-fail for now: the codebase still has mypy-fixing in progress.
+        # Once mypy is at 0 errors, remove the || true and make this blocking.
+        run: ruff check app/ clarix_cli/ tests/ || true
+
+      - name: mypy
+        # Same soft-fail rationale. Goal: get this to 0 errors in a follow-up.
+        run: mypy app/ clarix_cli/ || true
 
   frontend:
     name: Frontend (build)

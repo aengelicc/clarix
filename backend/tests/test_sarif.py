@@ -1,8 +1,6 @@
 """Tests for the SARIF 2.1.0 export."""
 import json
 
-import pytest
-
 from app.core.models import (
     Category,
     FileAnalysis,
@@ -77,7 +75,7 @@ def test_static_rule_finding_uses_rule_id_and_lookup():
 
 def test_severity_maps_to_sarif_level():
     report = ProjectReport(repo_name="x", source_type="local")
-    for sev, expected in [
+    for sev, _expected in [
         (Severity.CRITICAL, "error"),
         (Severity.HIGH, "error"),
         (Severity.MEDIUM, "warning"),

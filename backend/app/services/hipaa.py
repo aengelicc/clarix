@@ -1,7 +1,7 @@
 """HIPAA Security Rule compliance scanning and checklist generation."""
 from pathlib import Path
-from typing import List, Dict, Any
-from app.core.models import Issue, HipaaChecklistItem, Severity, Category, SEVERITY_ORDER
+
+from app.core.models import SEVERITY_ORDER, HipaaChecklistItem, Issue, Severity
 from app.services.scanner_common import scan_rules
 
 # (name, pattern, severity, hipaa_ref, recommendation)
@@ -175,12 +175,12 @@ HIPAA_CHECKLIST_TEMPLATE = [
 
 
 
-def scan_hipaa(file_path: Path, relative_path: str, language: str, content: str) -> List[Issue]:
+def scan_hipaa(file_path: Path, relative_path: str, language: str, content: str) -> list[Issue]:
     """Scan a file for HIPAA Security Rule violations, returning tagged Issues."""
     return scan_rules(relative_path, language, content, scanner="hipaa")
 
 
-def build_hipaa_checklist(all_issues: List[Issue]) -> List[HipaaChecklistItem]:
+def build_hipaa_checklist(all_issues: list[Issue]) -> list[HipaaChecklistItem]:
     """Map HIPAA-tagged findings to regulatory sections, returning a compliance checklist."""
     checklist = []
     for item in HIPAA_CHECKLIST_TEMPLATE:

@@ -52,8 +52,8 @@ def test_privileged_op_without_audit_multiline(rel_path):
 
 
 def test_cis_checklist_section_mapping():
+    from app.core.models import Category, Issue, Severity
     from app.services.cis_controls import build_cis_checklist
-    from app.core.models import Issue, Severity, Category
 
     issue = Issue(
         category=Category.SECURITY,
@@ -73,7 +73,7 @@ def test_cis_checklist_section_mapping():
 
 
 def test_cis_pattern_count_matches_module():
-    from app.services.cis_controls import CIS_PATTERNS
     from app.services import rules_store
+    from app.services.cis_controls import CIS_PATTERNS
     rules = rules_store.get_active_rules(scanner="cis")
     assert len(rules) == len(CIS_PATTERNS)

@@ -1,6 +1,7 @@
 """Native folder picker endpoint (macOS via osascript)."""
 import subprocess
 import sys
+
 from fastapi import APIRouter, HTTPException, Request
 
 router = APIRouter()

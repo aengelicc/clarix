@@ -1,11 +1,12 @@
 """API routes for code analysis."""
 import asyncio
+import contextlib
 import json
 import threading
 import uuid
+
 from fastapi import APIRouter, HTTPException, Request, Response
-from fastapi.responses import StreamingResponse, JSONResponse
-from typing import Optional
+from fastapi.responses import JSONResponse, StreamingResponse
 
 # Per-job cancel events — keyed by job_id UUID. Never a global singleton.
 _cancel_events: dict = {}
@@ -15,18 +16,18 @@ _cancel_events_lock = threading.Lock()
 class _AnalysisCancelled(Exception):
     pass
 
-from app.core.models import AnalyzeRequest, AnalyzeResponse, ProjectReport
 from app.core.config import settings
-from app.services.ingestion import RepoIngestor
-from app.services.llm import LLMClient
+from app.core.models import AnalyzeRequest, AnalyzeResponse, ProjectReport
 from app.services.analyzer import CodeAnalyzer
 from app.services.file_utils import get_repo_files
+from app.services.ingestion import RepoIngestor
+from app.services.llm import LLMClient
 from app.services.sarif import build_sarif
 
 router = APIRouter()
 
 
-def _run_analysis(request: AnalyzeRequest, cancel_event: Optional[threading.Event] = None,
+def _run_analysis(request: AnalyzeRequest, cancel_event: threading.Event | None = None,
                   on_progress=None) -> ProjectReport:
     """Run the full analysis pipeline: ingest, scan, optional LLM. Returns a ProjectReport.
 
@@ -69,10 +70,8 @@ def _run_analysis(request: AnalyzeRequest, cancel_event: Optional[threading.Even
         return report
     finally:
         if ingestor:
-            try:
+            with contextlib.suppress(Exception):
                 ingestor.cleanup()
-            except Exception:
-                pass
 
 
 @router.post("/analyze/cancel")
@@ -102,7 +101,7 @@ def analyze_repo(request: AnalyzeRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/analyze/sarif")
@@ -223,10 +222,8 @@ async def analyze_repo_stream(request: AnalyzeRequest):
             with _cancel_events_lock:
                 _cancel_events.pop(job_id, None)
             if ingestor:
-                try:
+                with contextlib.suppress(Exception):
                     ingestor.cleanup()
-                except Exception:
-                    pass
 
         print(f"[stream] analysis done [{job_id}] — error={error_msg!r} report={'set' if report else 'None'}", flush=True)
 
@@ -254,12 +251,10 @@ async def analyze_repo_stream(request: AnalyzeRequest):
         except Exception as e:
             print(f"[stream] exception delivering result [{job_id}]: {e}", flush=True)
             _tb.print_exc()
-            try:
+            with contextlib.suppress(Exception):
                 asyncio.run_coroutine_threadsafe(
                     queue.put({"type": "error", "message": "Failed to deliver result"}), loop
                 ).result(timeout=10)
-            except Exception:
-                pass
         finally:
             print(f"[stream] sending sentinel [{job_id}]", flush=True)
             try:

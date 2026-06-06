@@ -1,18 +1,18 @@
 """FastAPI application entry point."""
+
 from fastapi import Depends, FastAPI, HTTPException, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from typing import Optional
 
-from app.core.config import settings
 from app.api.analysis import router as analysis_router
 from app.api.browse import router as browse_router
 from app.api.rules import router as rules_router
+from app.core.config import settings
 
 _bearer = HTTPBearer(auto_error=False)
 
 
-def _require_auth(credentials: Optional[HTTPAuthorizationCredentials] = Security(_bearer)):
+def _require_auth(credentials: HTTPAuthorizationCredentials | None = Security(_bearer)):
     """No-op when API_SECRET_TOKEN is unset; enforces bearer token otherwise."""
     token = settings.api_secret_token
     if not token:

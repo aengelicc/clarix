@@ -6,7 +6,7 @@ get their rule_id from rules.json; LLM-detected issues get a stable
 synthetic ID derived from the report position.
 """
 import re
-from typing import Any, Dict, List
+from typing import Any
 
 from app.core.models import Issue, ProjectReport, Severity
 
@@ -22,7 +22,7 @@ CLARIX_INFO_URI = "https://github.com/aengelicc/clarix"
 #   warning = should fix
 #   note    = informational
 #   none    = not actionable
-SEVERITY_TO_LEVEL: Dict[str, str] = {
+SEVERITY_TO_LEVEL: dict[str, str] = {
     Severity.CRITICAL.value: "error",
     Severity.HIGH.value: "error",
     Severity.MEDIUM.value: "warning",
@@ -37,8 +37,8 @@ def _slugify(name: str) -> str:
     return slug or "Rule"
 
 
-def _all_issues(report: ProjectReport) -> List[Issue]:
-    issues: List[Issue] = list(report.security_findings)
+def _all_issues(report: ProjectReport) -> list[Issue]:
+    issues: list[Issue] = list(report.security_findings)
     for fa in report.file_analyses:
         issues.extend(fa.issues)
     issues.extend(report.project_level_issues)
@@ -49,7 +49,7 @@ def _build_rule_entry(
     rule_id: str,
     sample_issue: Issue,
     rule_def: Any,  # SecurityRule | None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build a SARIF reportingDescriptor (a 'rule' entry) for one rule."""
     if rule_def is not None:
         name = _slugify(rule_def.name)
@@ -57,7 +57,7 @@ def _build_rule_entry(
         full = rule_def.description
         help_text = rule_def.recommendation
         default_level = SEVERITY_TO_LEVEL.get(rule_def.severity.value, "warning")
-        props: Dict[str, Any] = {
+        props: dict[str, Any] = {
             "scanner": rule_def.scanner,
             "ruleType": rule_def.rule_type,
         }
@@ -80,7 +80,7 @@ def _build_rule_entry(
         if sample_issue.compliance_ref:
             props["complianceRef"] = sample_issue.compliance_ref
 
-    entry: Dict[str, Any] = {
+    entry: dict[str, Any] = {
         "id": rule_id,
         "name": name,
         "shortDescription": {"text": short},
@@ -93,18 +93,18 @@ def _build_rule_entry(
     return entry
 
 
-def _build_result(issue: Issue, rule_id: str) -> Dict[str, Any]:
+def _build_result(issue: Issue, rule_id: str) -> dict[str, Any]:
     """Build a SARIF result (a single finding)."""
-    physical: Dict[str, Any] = {
+    physical: dict[str, Any] = {
         "artifactLocation": {"uri": issue.file or "<unknown>"},
     }
     if issue.line is not None:
-        region: Dict[str, Any] = {"startLine": issue.line}
+        region: dict[str, Any] = {"startLine": issue.line}
         if issue.code_snippet:
             region["snippet"] = {"text": issue.code_snippet[:500]}
         physical["region"] = region
 
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "ruleId": rule_id,
         "level": SEVERITY_TO_LEVEL.get(issue.severity.value, "warning"),
         "message": {"text": issue.description},
@@ -112,7 +112,7 @@ def _build_result(issue: Issue, rule_id: str) -> Dict[str, Any]:
     }
 
     # Attach compliance / category metadata as SARIF properties for tooling that reads them.
-    result_props: Dict[str, Any] = {
+    result_props: dict[str, Any] = {
         "category": issue.category.value,
         "source": issue.source,
     }
@@ -124,7 +124,7 @@ def _build_result(issue: Issue, rule_id: str) -> Dict[str, Any]:
     return result
 
 
-def build_sarif(report: ProjectReport) -> Dict[str, Any]:
+def build_sarif(report: ProjectReport) -> dict[str, Any]:
     """Convert a ProjectReport into a SARIF 2.1.0 document.
 
     Only rules referenced by at least one issue in this report are listed in
@@ -135,8 +135,8 @@ def build_sarif(report: ProjectReport) -> Dict[str, Any]:
 
     rules_by_id = {r.id: r for r in rules_store.get_all_rules()}
 
-    rule_entries: Dict[str, Dict[str, Any]] = {}
-    results: List[Dict[str, Any]] = []
+    rule_entries: dict[str, dict[str, Any]] = {}
+    results: list[dict[str, Any]] = []
     llm_counter = 0
 
     for issue in _all_issues(report):

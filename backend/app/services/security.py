@@ -1,9 +1,8 @@
 """Security scanning: secrets and dangerous patterns."""
 from pathlib import Path
-from typing import List
-from app.core.models import Issue, Severity
-from app.services.scanner_common import scan_rules
 
+from app.core.models import Category, Issue, Severity
+from app.services.scanner_common import scan_rules
 
 SECRET_PATTERNS = [
     ("AWS Access Key", r"AKIA[0-9A-Z]{16}", Severity.CRITICAL),
@@ -69,7 +68,7 @@ DEPENDENCY_FILES = {
 }
 
 
-def scan_file(file_path: Path, relative_path: str, language: str, content: str) -> List[Issue]:
+def scan_file(file_path: Path, relative_path: str, language: str, content: str) -> list[Issue]:
     """Scan a file for secrets and dangerous patterns. Combines two
     rule_type passes through the shared scan_rules helper:
       - 'secret' rules: no language filter, treat lowercased comment
@@ -93,7 +92,7 @@ def scan_file(file_path: Path, relative_path: str, language: str, content: str) 
     return secrets + dangerous
 
 
-def check_dependencies(repo_path: str) -> List[Issue]:
+def check_dependencies(repo_path: str) -> list[Issue]:
     issues = []
     repo = Path(repo_path)
     for dep_file, dep_type in DEPENDENCY_FILES.items():

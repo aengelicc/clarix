@@ -1,7 +1,7 @@
 """PCI-DSS v4.0 compliance scanning."""
 from pathlib import Path
-from typing import List
-from app.core.models import Issue, ComplianceChecklistItem, Severity, Category, SEVERITY_ORDER
+
+from app.core.models import SEVERITY_ORDER, ComplianceChecklistItem, Issue, Severity
 from app.services.scanner_common import scan_rules
 
 # (name, pattern, severity, pci_ref, recommendation)
@@ -119,12 +119,12 @@ PCI_CHECKLIST_TEMPLATE = [
 
 
 
-def scan_pci(file_path: Path, relative_path: str, language: str, content: str) -> List[Issue]:
+def scan_pci(file_path: Path, relative_path: str, language: str, content: str) -> list[Issue]:
     """Scan a file for PCI-DSS v4.0 compliance violations."""
     return scan_rules(relative_path, language, content, scanner="pci")
 
 
-def build_pci_checklist(all_issues: List[Issue]) -> List[ComplianceChecklistItem]:
+def build_pci_checklist(all_issues: list[Issue]) -> list[ComplianceChecklistItem]:
     """Map PCI-tagged findings to requirement sections."""
     checklist = []
     for item in PCI_CHECKLIST_TEMPLATE:

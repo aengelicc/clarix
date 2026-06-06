@@ -34,7 +34,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0.0"]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.6.0",
+    "mypy>=1.10.0",
+]
 
 [project.scripts]
 clarix = "clarix_cli.cli:main"
@@ -45,3 +49,59 @@ include = ["app*", "clarix_cli*"]
 
 [tool.setuptools.package-data]
 "app.data" = ["rules.json"]
+
+# ---- Lint / type-check configuration --------------------------------------
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["build", "dist", ".venv", "venv"]
+
+[tool.ruff.lint]
+# Pragmatic rule set: catch real bugs and obvious smells, no bike-shedding.
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes (unused imports, undefined names, ...)
+    "I",   # isort (imports ordering)
+    "B",   # bugbear (likely bugs)
+    "UP",  # pyupgrade (modern Python idioms)
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501",  # line too long — handled by formatter
+    "B008",  # function call in default argument (FastAPI Depends)
+    "B904",  # raise from err — too noisy for the FastAPI exception handlers
+    "SIM108",# use ternary — too noisy
+    "UP042", # str+Enum subclass — forward-looking deprecation, not yet a bug
+]
+
+[tool.ruff.lint.per-file-ignores]
+# analysis.py has post-class imports to break a circular dependency
+# between the module's exception type and its imports. Leaving them as
+# E402 is the simpler and clearer pattern here.
+"app/api/analysis.py" = ["E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "clarix_cli"]
+
+[tool.mypy]
+python_version = "3.11"
+# Pragmatic settings: flag obvious issues but don't fail on missing
+# annotations. The codebase is ~85% typed; tightening happens in follow-up
+# commits, not in a single big-bang.
+ignore_missing_imports = true
+no_implicit_optional = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+# Don't error on each untyped function body — too noisy for now.
+check_untyped_defs = false
+# Allow returning Any from functions that lack a precise annotation.
+disallow_any_return = false
+disallow_any_generics = false
+exclude = ["build/", "tests/fixtures/"]
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+check_untyped_defs = true

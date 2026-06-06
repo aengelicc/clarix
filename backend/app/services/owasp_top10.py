@@ -6,11 +6,9 @@ the OWASP category reference so the OWASP view is substantively useful on its
 own, not just an alias of another framework.
 """
 from pathlib import Path
-from typing import List
 
-from app.core.models import Issue, ComplianceChecklistItem, Severity, Category, SEVERITY_ORDER
+from app.core.models import SEVERITY_ORDER, ComplianceChecklistItem, Issue, Severity
 from app.services.scanner_common import scan_rules
-
 
 # (name, pattern, severity, owasp_ref, recommendation)
 OWASP_PATTERNS = [
@@ -273,14 +271,14 @@ OWASP_CHECKLIST_TEMPLATE = [
 ]
 
 
-def scan_owasp(file_path: Path, relative_path: str, language: str, content: str) -> List[Issue]:
+def scan_owasp(file_path: Path, relative_path: str, language: str, content: str) -> list[Issue]:
     """Scan a file for OWASP Top 10 (2021) violations."""
     return scan_rules(relative_path, language, content, scanner="owasp")
 
 
-def build_owasp_checklist(all_issues: List[Issue]) -> List[ComplianceChecklistItem]:
+def build_owasp_checklist(all_issues: list[Issue]) -> list[ComplianceChecklistItem]:
     """Map OWASP-tagged findings to category sections."""
-    checklist: List[ComplianceChecklistItem] = []
+    checklist: list[ComplianceChecklistItem] = []
     for item in OWASP_CHECKLIST_TEMPLATE:
         relevant = [
             i for i in all_issues

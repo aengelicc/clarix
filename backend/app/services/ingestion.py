@@ -1,11 +1,12 @@
 """Repository ingestion: GitHub clone and local path handling."""
 import os
 import re
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
-from git import Repo
 from urllib.parse import urlparse
+
+from git import Repo
 
 
 def extract_repo_info(github_url: str) -> tuple:

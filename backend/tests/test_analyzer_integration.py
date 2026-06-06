@@ -1,11 +1,8 @@
 """Verify the ProjectReport model exposes the new owasp_checklist and cis_checklist fields,
 and that the analyzer populates them from a real scan.
 """
-import os
 import tempfile
 from pathlib import Path
-
-import pytest
 
 
 def test_project_report_has_owasp_and_cis_checklist_fields():

@@ -5,11 +5,9 @@ Covers the code-scannable subset of CIS Controls v8. Implementation Group
 priorities (IG1 = basic cyber hygiene, IG2 = intermediate, IG3 = advanced).
 """
 from pathlib import Path
-from typing import List
 
-from app.core.models import Issue, ComplianceChecklistItem, Severity, Category, SEVERITY_ORDER
+from app.core.models import SEVERITY_ORDER, ComplianceChecklistItem, Issue, Severity
 from app.services.scanner_common import scan_rules
-
 
 # (name, pattern, severity, cis_ref, recommendation)
 CIS_PATTERNS = [
@@ -242,14 +240,14 @@ CIS_CHECKLIST_TEMPLATE = [
 ]
 
 
-def scan_cis(file_path: Path, relative_path: str, language: str, content: str) -> List[Issue]:
+def scan_cis(file_path: Path, relative_path: str, language: str, content: str) -> list[Issue]:
     """Scan a file for CIS Critical Security Controls v8 violations."""
     return scan_rules(relative_path, language, content, scanner="cis")
 
 
-def build_cis_checklist(all_issues: List[Issue]) -> List[ComplianceChecklistItem]:
+def build_cis_checklist(all_issues: list[Issue]) -> list[ComplianceChecklistItem]:
     """Map CIS-tagged findings to control sections."""
-    checklist: List[ComplianceChecklistItem] = []
+    checklist: list[ComplianceChecklistItem] = []
     for item in CIS_CHECKLIST_TEMPLATE:
         relevant = [
             i for i in all_issues

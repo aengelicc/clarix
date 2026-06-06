@@ -1,7 +1,8 @@
 """Pydantic models for Clarix API."""
-from typing import List, Literal, Optional, Dict, Any
-from pydantic import BaseModel, Field
 from enum import Enum
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field
 
 
 class Severity(str, Enum):
@@ -28,14 +29,14 @@ class Issue(BaseModel):
     category: Category
     severity: Severity
     file: str
-    line: Optional[int] = None
+    line: int | None = None
     description: str
     recommendation: str
-    code_snippet: Optional[str] = None
+    code_snippet: str | None = None
     source: str = "llm"
-    rule_id: Optional[str] = None  # set by static scanners from rules.json; None for LLM-detected issues
-    hipaa_reference: Optional[str] = None
-    compliance_ref: Optional[str] = None
+    rule_id: str | None = None  # set by static scanners from rules.json; None for LLM-detected issues
+    hipaa_reference: str | None = None
+    compliance_ref: str | None = None
 
 
 class HipaaChecklistItem(BaseModel):
@@ -44,7 +45,7 @@ class HipaaChecklistItem(BaseModel):
     description: str
     findings_count: int
     status: str  # "pass" or "fail"
-    worst_severity: Optional[str] = None
+    worst_severity: str | None = None
 
 
 class ComplianceChecklistItem(BaseModel):
@@ -54,18 +55,18 @@ class ComplianceChecklistItem(BaseModel):
     description: str
     findings_count: int = 0
     status: str = "pass"  # "pass" or "fail"
-    worst_severity: Optional[str] = None
+    worst_severity: str | None = None
 
 
 class FileAnalysis(BaseModel):
     file_path: str
     language: str
     size_bytes: int
-    issues: List[Issue] = Field(default_factory=list)
+    issues: list[Issue] = Field(default_factory=list)
     summary: str = ""
     token_count: int = 0
     analyzed: bool = True
-    skip_reason: Optional[str] = None
+    skip_reason: str | None = None
 
 
 class LanguageBreakdown(BaseModel):
@@ -77,19 +78,19 @@ class LanguageBreakdown(BaseModel):
 class ProjectReport(BaseModel):
     repo_name: str
     source_type: str
-    languages: List[LanguageBreakdown] = Field(default_factory=list)
+    languages: list[LanguageBreakdown] = Field(default_factory=list)
     overall_risk_score: int = Field(0, ge=0, le=100)
     overall_assessment: str = ""
-    file_analyses: List[FileAnalysis] = Field(default_factory=list)
-    project_level_issues: List[Issue] = Field(default_factory=list)
-    security_findings: List[Issue] = Field(default_factory=list)
-    hipaa_checklist: List[HipaaChecklistItem] = Field(default_factory=list)
-    pci_checklist: List[ComplianceChecklistItem] = Field(default_factory=list)
-    gdpr_checklist: List[ComplianceChecklistItem] = Field(default_factory=list)
-    soc2_checklist: List[ComplianceChecklistItem] = Field(default_factory=list)
-    owasp_checklist: List[ComplianceChecklistItem] = Field(default_factory=list)
-    cis_checklist: List[ComplianceChecklistItem] = Field(default_factory=list)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    file_analyses: list[FileAnalysis] = Field(default_factory=list)
+    project_level_issues: list[Issue] = Field(default_factory=list)
+    security_findings: list[Issue] = Field(default_factory=list)
+    hipaa_checklist: list[HipaaChecklistItem] = Field(default_factory=list)
+    pci_checklist: list[ComplianceChecklistItem] = Field(default_factory=list)
+    gdpr_checklist: list[ComplianceChecklistItem] = Field(default_factory=list)
+    soc2_checklist: list[ComplianceChecklistItem] = Field(default_factory=list)
+    owasp_checklist: list[ComplianceChecklistItem] = Field(default_factory=list)
+    cis_checklist: list[ComplianceChecklistItem] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     generated_at: str = ""
 
 
@@ -103,7 +104,7 @@ class SecurityRule(BaseModel):
     language: str = "*"        # "*" = any; e.g. "Python", "JavaScript"
     scanner: str               # "security", "hipaa", "pci", "gdpr", "soc2"
     rule_type: str             # "secret", "dangerous", "compliance"
-    compliance_ref: Optional[str] = None
+    compliance_ref: str | None = None
     enabled: bool = True
     builtin: bool = True
 
@@ -117,33 +118,33 @@ class SecurityRuleCreate(BaseModel):
     language: str = "*"
     scanner: str = "security"
     rule_type: str = "dangerous"
-    compliance_ref: Optional[str] = None
+    compliance_ref: str | None = None
 
 
 class SecurityRuleUpdate(BaseModel):
-    name: Optional[str] = None
-    pattern: Optional[str] = None
-    severity: Optional[Severity] = None
-    description: Optional[str] = None
-    recommendation: Optional[str] = None
-    language: Optional[str] = None
-    compliance_ref: Optional[str] = None
-    enabled: Optional[bool] = None
+    name: str | None = None
+    pattern: str | None = None
+    severity: Severity | None = None
+    description: str | None = None
+    recommendation: str | None = None
+    language: str | None = None
+    compliance_ref: str | None = None
+    enabled: bool | None = None
 
 
 class AnalyzeRequest(BaseModel):
     source: str
     source_type: str = "github"  # github or local
-    github_pat: Optional[str] = None
-    llm_provider: Optional[str] = None  # "openai" or "anthropic"
-    api_key: Optional[str] = None       # overrides server-side env var for this request
-    max_files: Optional[int] = None
-    max_file_size_kb: Optional[int] = None
+    github_pat: str | None = None
+    llm_provider: str | None = None  # "openai" or "anthropic"
+    api_key: str | None = None       # overrides server-side env var for this request
+    max_files: int | None = None
+    max_file_size_kb: int | None = None
     static_only: bool = False  # deprecated — use analysis_mode="static"
     analysis_mode: Literal["static", "per_file", "bundle"] = "per_file"
 
 
 class AnalyzeResponse(BaseModel):
     success: bool
-    report: Optional[ProjectReport] = None
-    error: Optional[str] = None
+    report: ProjectReport | None = None
+    error: str | None = None

@@ -16,11 +16,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence
 
 from clarix_cli import __version__
-
 
 # Exit codes — kept stable for CI consumers.
 EXIT_OK = 0
@@ -135,7 +134,7 @@ def _format_text(report, issues, *, use_color: bool) -> str:
         "medium": c_yellow, "low": c_yellow, "info": c_dim,
     }
 
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append(f"{c_bold}Clarix scan: {report.repo_name}{c_reset}")
     lines.append(f"{c_dim}files analyzed: {(report.metadata or {}).get('total_files_analyzed', 0)}  "
                  f"issues shown: {len(issues)}{c_reset}")
@@ -289,7 +288,7 @@ def _run_rules(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 

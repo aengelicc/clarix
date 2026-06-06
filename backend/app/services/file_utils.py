@@ -1,8 +1,8 @@
 """File system utilities."""
 import os
-import pathspec
 from pathlib import Path
-from typing import List, Tuple, Optional
+
+import pathspec
 
 CODE_EXTENSIONS = {
     ".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".go", ".rs", ".cpp", ".c", ".h",
@@ -30,10 +30,10 @@ SKIP_DIRS = {
 }
 
 
-def load_gitignore_specs(repo_path: str) -> Optional[pathspec.PathSpec]:
+def load_gitignore_specs(repo_path: str) -> pathspec.PathSpec | None:
     gitignore_path = Path(repo_path) / ".gitignore"
     if gitignore_path.exists():
-        with open(gitignore_path, "r", encoding="utf-8", errors="ignore") as f:
+        with open(gitignore_path, encoding="utf-8", errors="ignore") as f:
             lines = [line.strip() for line in f if line.strip() and not line.startswith("#")]
             return pathspec.PathSpec.from_lines("gitwildmatch", lines)
     return None
@@ -53,7 +53,7 @@ def detect_language(file_path: Path) -> str:
 
 
 def get_repo_files(repo_path: str, max_file_size_kb: int = 500, max_files: int = 100,
-                   include_hidden: bool = False) -> List[Tuple[Path, str, int]]:
+                   include_hidden: bool = False) -> list[tuple[Path, str, int]]:
     repo_path = Path(repo_path).resolve()
     gitignore = load_gitignore_specs(str(repo_path))
     files = []
@@ -84,7 +84,7 @@ def get_repo_files(repo_path: str, max_file_size_kb: int = 500, max_files: int =
 
 def read_file_content(file_path: Path, max_chars: int = 50000) -> str:
     try:
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        with open(file_path, encoding="utf-8", errors="ignore") as f:
             return f.read(max_chars)
     except Exception as e:
         return f"[Error reading file: {e}]"

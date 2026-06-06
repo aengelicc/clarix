@@ -4,18 +4,17 @@ import re
 import threading
 import uuid
 from pathlib import Path
-from typing import List, Optional
 
 from app.core.models import SecurityRule, SecurityRuleCreate, SecurityRuleUpdate
 
 DATA_FILE = Path(__file__).parent.parent / "data" / "rules.json"
 
-_cache: Optional[List[SecurityRule]] = None
+_cache: list[SecurityRule] | None = None
 _cache_mtime: float = 0.0
 _lock = threading.RLock()
 
 
-def _save(rules: List[SecurityRule]) -> None:
+def _save(rules: list[SecurityRule]) -> None:
     global _cache, _cache_mtime
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
     with _lock:
@@ -27,15 +26,15 @@ def _save(rules: List[SecurityRule]) -> None:
 
 def _seed() -> None:
     # Lazy imports to avoid circular dependency (scanners import rules_store).
-    from app.services.security import SECRET_PATTERNS, DANGEROUS_PATTERNS
-    from app.services.hipaa import HIPAA_PATTERNS
-    from app.services.pci_dss import PCI_PATTERNS
-    from app.services.gdpr import GDPR_PATTERNS
-    from app.services.soc2 import SOC2_PATTERNS
-    from app.services.owasp_top10 import OWASP_PATTERNS
     from app.services.cis_controls import CIS_PATTERNS
+    from app.services.gdpr import GDPR_PATTERNS
+    from app.services.hipaa import HIPAA_PATTERNS
+    from app.services.owasp_top10 import OWASP_PATTERNS
+    from app.services.pci_dss import PCI_PATTERNS
+    from app.services.security import DANGEROUS_PATTERNS, SECRET_PATTERNS
+    from app.services.soc2 import SOC2_PATTERNS
 
-    rules: List[SecurityRule] = []
+    rules: list[SecurityRule] = []
 
     for i, (name, pattern, severity) in enumerate(SECRET_PATTERNS):
         rules.append(SecurityRule(
@@ -153,7 +152,7 @@ def _seed() -> None:
     _save(rules)
 
 
-def _load() -> List[SecurityRule]:
+def _load() -> list[SecurityRule]:
     global _cache, _cache_mtime
     with _lock:
         if not DATA_FILE.exists():
@@ -169,11 +168,11 @@ def _load() -> List[SecurityRule]:
         return _cache
 
 
-def get_all_rules() -> List[SecurityRule]:
+def get_all_rules() -> list[SecurityRule]:
     return _load()
 
 
-def get_active_rules(scanner: Optional[str] = None, rule_type: Optional[str] = None) -> List[SecurityRule]:
+def get_active_rules(scanner: str | None = None, rule_type: str | None = None) -> list[SecurityRule]:
     rules = [r for r in _load() if r.enabled]
     if scanner:
         rules = [r for r in rules if r.scanner == scanner]
@@ -231,7 +230,7 @@ def delete_rule(rule_id: str) -> None:
     _save([r for r in rules if r.id != rule_id])
 
 
-def bulk_update_enabled(enabled: bool) -> List[SecurityRule]:
+def bulk_update_enabled(enabled: bool) -> list[SecurityRule]:
     rules = _load()
     updated = [SecurityRule(**{**r.model_dump(), "enabled": enabled}) for r in rules]
     _save(updated)

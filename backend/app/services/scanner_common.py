@@ -14,7 +14,6 @@ gdpr/soc2/owasp/cis) are exposed as parameters.
 from __future__ import annotations
 
 import re
-from typing import List, Optional
 
 from app.core.models import Category, Issue
 from app.services import rules_store
@@ -28,7 +27,7 @@ def _is_comment_line(stripped: str) -> bool:
 
 
 def _build_issue(rule, source: str, relative_path: str, line: int,
-                code_snippet: Optional[str] = None) -> Issue:
+                code_snippet: str | None = None) -> Issue:
     """Build a single Issue from a matching rule. The hipaa scanner is the
     only one that uses the hipaa_reference field; the others just set
     compliance_ref (which the API serializes as the 'compliance' badge)."""
@@ -54,11 +53,11 @@ def scan_rules(
     content: str,
     *,
     scanner: str,
-    rule_type: Optional[str] = None,
-    source: Optional[str] = None,
+    rule_type: str | None = None,
+    source: str | None = None,
     language_check: bool = True,
     comment_strip_lower: bool = False,
-) -> List[Issue]:
+) -> list[Issue]:
     """Run a static rule scan and return matched Issues.
 
     Args:
@@ -80,7 +79,7 @@ def scan_rules(
             "# AWS KEY" is treated as documentation.
     """
     source = source or f"{scanner}_scanner"
-    issues: List[Issue] = []
+    issues: list[Issue] = []
     lines = content.splitlines()
     rules = rules_store.get_active_rules(scanner=scanner, rule_type=rule_type)
 

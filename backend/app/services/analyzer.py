@@ -1,25 +1,24 @@
 """Main analysis orchestrator."""
-from pathlib import Path
-from typing import List, Optional, Tuple
 from datetime import datetime
+from pathlib import Path
 
-from app.core.models import Issue, FileAnalysis, ProjectReport, LanguageBreakdown, Severity, Category
-from app.services.file_utils import read_file_content, count_lines, estimate_tokens
+from app.core.models import Category, FileAnalysis, Issue, LanguageBreakdown, ProjectReport, Severity
+from app.services.cis_controls import build_cis_checklist, scan_cis
+from app.services.file_utils import count_lines, estimate_tokens, read_file_content
+from app.services.gdpr import build_gdpr_checklist, scan_gdpr
+from app.services.hipaa import build_hipaa_checklist, scan_hipaa
 from app.services.llm import LLMClient
-from app.services.security import scan_file, check_dependencies
-from app.services.hipaa import scan_hipaa, build_hipaa_checklist
-from app.services.pci_dss import scan_pci, build_pci_checklist
-from app.services.gdpr import scan_gdpr, build_gdpr_checklist
-from app.services.soc2 import scan_soc2, build_soc2_checklist
-from app.services.owasp_top10 import scan_owasp, build_owasp_checklist
-from app.services.cis_controls import scan_cis, build_cis_checklist
+from app.services.owasp_top10 import build_owasp_checklist, scan_owasp
+from app.services.pci_dss import build_pci_checklist, scan_pci
+from app.services.security import check_dependencies, scan_file
+from app.services.soc2 import build_soc2_checklist, scan_soc2
 
 # Leave ~15k for system prompt and 16k for output; rest is code content
 _BUNDLE_TOKEN_BUDGET = 150_000
 
 
 class CodeAnalyzer:
-    def __init__(self, llm_client: Optional[LLMClient] = None, max_file_tokens: int = 8000, cancel_event=None):
+    def __init__(self, llm_client: LLMClient | None = None, max_file_tokens: int = 8000, cancel_event=None):
         self.llm = llm_client
         self.max_file_tokens = max_file_tokens
         self.cancel_event = cancel_event
@@ -29,7 +28,7 @@ class CodeAnalyzer:
             from app.api.analysis import _AnalysisCancelled
             raise _AnalysisCancelled()
 
-    def _run_static_scanners(self, abs_path, rel_path_str: str, language: str, content: str) -> List[Issue]:
+    def _run_static_scanners(self, abs_path, rel_path_str: str, language: str, content: str) -> list[Issue]:
         return (
             scan_file(abs_path, rel_path_str, language, content)
             + scan_hipaa(abs_path, rel_path_str, language, content)
@@ -43,7 +42,7 @@ class CodeAnalyzer:
     def analyze_repo(
         self,
         repo_path: str,
-        files: List[Tuple[Path, str, int]],
+        files: list[tuple[Path, str, int]],
         repo_name: str,
         source_type: str,
         on_progress=None,
@@ -55,7 +54,7 @@ class CodeAnalyzer:
             mode = "static"
 
         repo_path_obj = Path(repo_path)
-        all_issues: List[Issue] = []
+        all_issues: list[Issue] = []
         language_stats: dict = {}
         total = len(files)
 
@@ -342,7 +341,7 @@ class CodeAnalyzer:
 
     # ------------------------------------------------------------------
 
-    def _calculate_risk_score(self, all_issues: List[Issue], llm_suggested_score=None) -> int:
+    def _calculate_risk_score(self, all_issues: list[Issue], llm_suggested_score=None) -> int:
         weights = {Severity.CRITICAL: 25, Severity.HIGH: 10, Severity.MEDIUM: 4, Severity.LOW: 1, Severity.INFO: 0}
         static_score = 0
         sec_bonus = 0

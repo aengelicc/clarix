@@ -1,8 +1,5 @@
 """Tests for the clarix CLI."""
-import io
 import json
-import sys
-from contextlib import redirect_stdout
 from pathlib import Path
 
 import pytest
@@ -43,7 +40,7 @@ def test_scan_text_exits_zero_when_threshold_above_findings(vuln_repo, capsys):
     # Hmm, the rule is critical so it WILL fail since --fail-on defaults to threshold. Use a higher fail-on.
     assert code == cli.EXIT_FINDINGS  # critical findings, threshold=critical → fails
     # Now run with fail-on above the finding severity:
-    code2 = cli.main([
+    cli.main([
         "scan", str(vuln_repo), "--format", "text",
         "--severity-threshold", "info",  # show everything
         "--fail-on", "low",  # only fail at low+

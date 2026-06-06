@@ -62,8 +62,8 @@ def test_ssrf_user_input_in_url(rel_path):
 
 
 def test_owasp_checklist_includes_a01():
+    from app.core.models import Category, Issue, Severity
     from app.services.owasp_top10 import build_owasp_checklist
-    from app.core.models import Issue, Severity, Category
 
     issue = Issue(
         category=Category.SECURITY,
@@ -90,7 +90,7 @@ def test_comments_are_skipped(rel_path):
 
 
 def test_owasp_pattern_count_matches_module():
-    from app.services.owasp_top10 import OWASP_PATTERNS
     from app.services import rules_store
+    from app.services.owasp_top10 import OWASP_PATTERNS
     rules = rules_store.get_active_rules(scanner="owasp")
     assert len(rules) == len(OWASP_PATTERNS)

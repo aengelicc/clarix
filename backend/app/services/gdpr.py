@@ -1,7 +1,7 @@
 """GDPR compliance scanning."""
 from pathlib import Path
-from typing import List
-from app.core.models import Issue, ComplianceChecklistItem, Severity, Category, SEVERITY_ORDER
+
+from app.core.models import SEVERITY_ORDER, ComplianceChecklistItem, Issue, Severity
 from app.services.scanner_common import scan_rules
 
 GDPR_PATTERNS = [
@@ -110,12 +110,12 @@ GDPR_CHECKLIST_TEMPLATE = [
     },
 ]
 
-def scan_gdpr(file_path: Path, relative_path: str, language: str, content: str) -> List[Issue]:
+def scan_gdpr(file_path: Path, relative_path: str, language: str, content: str) -> list[Issue]:
     """Scan a file for GDPR compliance violations."""
     return scan_rules(relative_path, language, content, scanner="gdpr")
 
 
-def build_gdpr_checklist(all_issues: List[Issue]) -> List[ComplianceChecklistItem]:
+def build_gdpr_checklist(all_issues: list[Issue]) -> list[ComplianceChecklistItem]:
     """Map GDPR-tagged findings to article sections."""
     checklist = []
     for item in GDPR_CHECKLIST_TEMPLATE:

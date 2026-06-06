@@ -1,8 +1,8 @@
 """Unified LLM client for OpenAI and Anthropic."""
-import os
 import json
+import os
 import re
-from typing import Optional, Dict, Any
+from typing import Any
 
 
 class LLMClient:
@@ -33,7 +33,7 @@ class LLMClient:
             import openai
             self.client = openai.OpenAI(api_key=self.api_key)
 
-    def _extract_json(self, text: str) -> Optional[Dict]:
+    def _extract_json(self, text: str) -> dict | None:
         # Try direct parse first (clean LLM responses)
         try:
             return json.loads(text.strip())
@@ -80,7 +80,7 @@ class LLMClient:
                         return None
         return None
 
-    def analyze_file(self, file_path: str, language: str, content: str) -> Dict[str, Any]:
+    def analyze_file(self, file_path: str, language: str, content: str) -> dict[str, Any]:
         system_prompt = """You are an expert code reviewer with 15 years of experience in software engineering, security, and performance optimization.
 
 Analyze the provided code for the following categories:
@@ -119,12 +119,12 @@ If no issues are found, return {"issues": [], "summary": "No significant issues 
         if parsed is None:
             return {
                 "issues": [],
-                "summary": f"[Parse Error] LLM response could not be parsed.",
+                "summary": "[Parse Error] LLM response could not be parsed.",
                 "_raw": response_text[:200]
             }
         return parsed
 
-    def synthesize_project(self, file_summaries: list, all_issues: list) -> Dict[str, Any]:
+    def synthesize_project(self, file_summaries: list, all_issues: list) -> dict[str, Any]:
         system_prompt = """You are a principal engineer conducting an architecture and deployment readiness review.
 
 Given summaries and issues from individual files, identify cross-cutting concerns that span multiple files or represent systemic problems.

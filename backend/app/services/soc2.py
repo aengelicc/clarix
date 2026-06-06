@@ -1,7 +1,7 @@
 """SOC 2 Trust Service Criteria compliance scanning."""
 from pathlib import Path
-from typing import List
-from app.core.models import Issue, ComplianceChecklistItem, Severity, Category, SEVERITY_ORDER
+
+from app.core.models import SEVERITY_ORDER, ComplianceChecklistItem, Issue, Severity
 from app.services.scanner_common import scan_rules
 
 SOC2_PATTERNS = [
@@ -122,12 +122,12 @@ SOC2_CHECKLIST_TEMPLATE = [
     },
 ]
 
-def scan_soc2(file_path: Path, relative_path: str, language: str, content: str) -> List[Issue]:
+def scan_soc2(file_path: Path, relative_path: str, language: str, content: str) -> list[Issue]:
     """Scan a file for SOC 2 Trust Service Criteria violations."""
     return scan_rules(relative_path, language, content, scanner="soc2")
 
 
-def build_soc2_checklist(all_issues: List[Issue]) -> List[ComplianceChecklistItem]:
+def build_soc2_checklist(all_issues: list[Issue]) -> list[ComplianceChecklistItem]:
     """Map SOC 2-tagged findings to Trust Service Criteria sections."""
     checklist = []
     for item in SOC2_CHECKLIST_TEMPLATE:
