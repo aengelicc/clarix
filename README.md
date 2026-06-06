@@ -138,6 +138,23 @@ Enable **Static analysis only** in the settings panel to run purely regex-based 
 
 Clarix ships with 146 built-in rules. Open **Manage security rules** from the home screen to:
 
+### Docker
+
+```bash
+# Web API on :8000 (default)
+docker run -p 8000:8000 aengelicc/clarix
+# or: docker-compose up
+
+# One-shot CLI scan
+docker run --rm -v $(pwd):/src aengelicc/clarix scan /src --format sarif --output /src/scan.sarif
+
+# Built-in rules
+docker run --rm aengelicc/clarix rules --scanner owasp
+```
+
+The image is dual-mode: `clarix` runs the API by default; `clarix scan|rules|version` runs the CLI.
+
+
 ### CLI
 
 ```bash
