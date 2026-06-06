@@ -62,7 +62,12 @@ def _run_analysis(request: AnalyzeRequest, cancel_event: threading.Event | None 
         if not files:
             raise HTTPException(status_code=400, detail="No analyzable code files found in the repository.")
 
-        analyzer = CodeAnalyzer(llm_client, max_file_tokens=settings.max_file_tokens, cancel_event=cancel_event)
+        analyzer = CodeAnalyzer(
+            llm_client,
+            max_file_tokens=settings.max_file_tokens,
+            cancel_event=cancel_event,
+            frameworks=request.frameworks,
+        )
         report = analyzer.analyze_repo(
             repo_path, files, repo_name, source_type,
             on_progress=on_progress, mode=mode,
@@ -209,8 +214,16 @@ async def analyze_repo_stream(request: AnalyzeRequest):
             if not files:
                 error_msg = "No analyzable code files found in the repository."
             else:
-                analyzer = CodeAnalyzer(llm_client, max_file_tokens=settings.max_file_tokens, cancel_event=cancel_event)
-                report = analyzer.analyze_repo(repo_path, files, repo_name, source_type, on_progress=on_progress, mode=mode)
+                analyzer = CodeAnalyzer(
+                    llm_client,
+                    max_file_tokens=settings.max_file_tokens,
+                    cancel_event=cancel_event,
+                    frameworks=request.frameworks,
+                )
+                report = analyzer.analyze_repo(
+                    repo_path, files, repo_name, source_type,
+                    on_progress=on_progress, mode=mode,
+                )
         except _AnalysisCancelled:
             cancelled = True
         except Exception as e:

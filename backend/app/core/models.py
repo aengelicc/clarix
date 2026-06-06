@@ -142,6 +142,11 @@ class AnalyzeRequest(BaseModel):
     max_file_size_kb: int | None = None
     static_only: bool = False  # deprecated — use analysis_mode="static"
     analysis_mode: Literal["static", "per_file", "bundle"] = "per_file"
+    # Optional list of compliance frameworks to focus the LLM on. Examples:
+    # ["hipaa"], ["pci", "soc2"], ["gdpr"]. Omit (or pass []) to use the
+    # generic prompt. Valid ids are case-insensitive and live in
+    # app/services/framework_prompts.py.
+    frameworks: list[str] | None = None
 
 
 class AnalyzeResponse(BaseModel):

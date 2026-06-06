@@ -4,6 +4,8 @@ import os
 import re
 from typing import Any
 
+from app.services.framework_prompts import get_framework_block
+
 
 class LLMClient:
     def __init__(self, provider: str = None, api_key: str = None, model: str = None):
@@ -80,8 +82,15 @@ class LLMClient:
                         return None
         return None
 
-    def analyze_file(self, file_path: str, language: str, content: str) -> dict[str, Any]:
-        system_prompt = """You are an expert code reviewer with 15 years of experience in software engineering, security, and performance optimization.
+    def analyze_file(
+        self,
+        file_path: str,
+        language: str,
+        content: str,
+        frameworks: list[str] | None = None,
+    ) -> dict[str, Any]:
+        framework_block = get_framework_block(frameworks)
+        system_prompt = framework_block + """You are an expert code reviewer with 15 years of experience in software engineering, security, and performance optimization.
 
 Analyze the provided code for the following categories:
 1. **Bugs**: Logic errors, null pointer risks, race conditions, off-by-one errors, unhandled edge cases
@@ -124,8 +133,14 @@ If no issues are found, return {"issues": [], "summary": "No significant issues 
             }
         return parsed
 
-    def synthesize_project(self, file_summaries: list, all_issues: list) -> dict[str, Any]:
-        system_prompt = """You are a principal engineer conducting an architecture and deployment readiness review.
+    def synthesize_project(
+        self,
+        file_summaries: list,
+        all_issues: list,
+        frameworks: list[str] | None = None,
+    ) -> dict[str, Any]:
+        framework_block = get_framework_block(frameworks)
+        system_prompt = framework_block + """You are a principal engineer conducting an architecture and deployment readiness review.
 
 Given summaries and issues from individual files, identify cross-cutting concerns that span multiple files or represent systemic problems.
 
@@ -185,9 +200,14 @@ Risk score: 0-100 where 0 = pristine, 100 = critical issues blocking deployment.
             }
         return parsed
 
-    def analyze_bundle(self, files: list) -> dict:
+    def analyze_bundle(
+        self,
+        files: list,
+        frameworks: list[str] | None = None,
+    ) -> dict:
         """Analyze multiple files in one LLM call. Returns flat issue list + project summary."""
-        system_prompt = """You are an expert code reviewer specializing in security, bugs, and software architecture.
+        framework_block = get_framework_block(frameworks)
+        system_prompt = framework_block + """You are an expert code reviewer specializing in security, bugs, and software architecture.
 
 You will receive multiple source files from a codebase, each preceded by a header showing its path and language, with line numbers. Analyze all files together, catching both per-file issues and cross-cutting concerns.
 

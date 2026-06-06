@@ -18,10 +18,22 @@ _BUNDLE_TOKEN_BUDGET = 150_000
 
 
 class CodeAnalyzer:
-    def __init__(self, llm_client: LLMClient | None = None, max_file_tokens: int = 8000, cancel_event=None):
+    def __init__(
+        self,
+        llm_client: LLMClient | None = None,
+        max_file_tokens: int = 8000,
+        cancel_event=None,
+        frameworks: list[str] | None = None,
+    ):
         self.llm = llm_client
         self.max_file_tokens = max_file_tokens
         self.cancel_event = cancel_event
+        # Validated once at construction time so a bad id fails fast
+        # (instead of crashing mid-analysis inside the LLM call).
+        if frameworks:
+            from app.services.framework_prompts import get_framework_block
+            get_framework_block(frameworks)  # raises ValueError on unknown id
+        self.frameworks = frameworks or []
 
     def _check_cancel(self):
         if self.cancel_event and self.cancel_event.is_set():
@@ -177,7 +189,11 @@ class CodeAnalyzer:
                 continue
 
             static_issues = self._run_static_scanners(abs_path, str(rel_path), language, content)
-            llm_result = self.llm.analyze_file(str(rel_path), language, content) if not static_only and self.llm else {}
+            llm_result = (
+                self.llm.analyze_file(str(rel_path), language, content, frameworks=self.frameworks)
+                if not static_only and self.llm
+                else {}
+            )
 
             llm_issues = []
             for issue_data in llm_result.get("issues", []):
@@ -226,7 +242,7 @@ class CodeAnalyzer:
                 [i for i in all_issues if i.severity in (Severity.CRITICAL, Severity.HIGH)],
                 key=lambda x: (x.severity.value, x.category.value)
             )[:25]
-            synthesis = self.llm.synthesize_project(file_summaries, representative)
+            synthesis = self.llm.synthesize_project(file_summaries, representative, frameworks=self.frameworks)
 
         return file_analyses, synthesis
 
@@ -282,7 +298,11 @@ class CodeAnalyzer:
             on_progress(f"Sending {len(bundle_files)} files to AI for review...", total, total)
 
         # Phase 3: single LLM call
-        bundle_result = self.llm.analyze_bundle(bundle_files) if self.llm else {}
+        bundle_result = (
+            self.llm.analyze_bundle(bundle_files, frameworks=self.frameworks)
+            if self.llm
+            else {}
+        )
 
         # Index LLM issues by file path
         llm_by_file: dict = {}

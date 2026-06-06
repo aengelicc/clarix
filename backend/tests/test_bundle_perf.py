@@ -39,11 +39,11 @@ class _StubLLM:
             + self.synthesize_project_calls
         )
 
-    def analyze_file(self, file_path: str, language: str, content: str) -> dict:
+    def analyze_file(self, file_path: str, language: str, content: str, frameworks: list | None = None) -> dict:
         self.analyze_file_calls += 1
         return {"issues": [], "summary": "stub"}
 
-    def analyze_bundle(self, files: list) -> dict:
+    def analyze_bundle(self, files: list, frameworks: list | None = None) -> dict:
         self.analyze_bundle_calls += 1
         return {
             "issues": [],
@@ -52,7 +52,7 @@ class _StubLLM:
             "overall_risk_score": 10,
         }
 
-    def synthesize_project(self, file_summaries: list, all_issues: list) -> dict:
+    def synthesize_project(self, file_summaries: list, all_issues: list, frameworks: list | None = None) -> dict:
         self.synthesize_project_calls += 1
         return {
             "project_level_issues": [],
